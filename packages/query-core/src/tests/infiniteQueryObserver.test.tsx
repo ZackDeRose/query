@@ -1,4 +1,4 @@
-import { createQueryClient, queryKey, sleep } from './utils'
+import { createQueryClient, flushMicroTasks, queryKey, sleep } from './utils'
 import type { QueryClient } from '..'
 import { InfiniteQueryObserver } from '..'
 
@@ -28,7 +28,7 @@ describe('InfiniteQueryObserver', () => {
     const unsubscribe = observer.subscribe((result) => {
       observerResult = result
     })
-    await sleep(1)
+    await flushMicroTasks()
     unsubscribe()
     expect(observerResult).toMatchObject({
       data: { pages: ['1'], pageParams: [undefined] },
@@ -55,7 +55,7 @@ describe('InfiniteQueryObserver', () => {
     const unsubscribe = observer.subscribe((result) => {
       observerResult = result
     })
-    await sleep(1)
+    await flushMicroTasks()
     unsubscribe()
     expect(observerResult).toMatchObject({
       data: { pages: ['1'], pageParams: [undefined] },

@@ -1,6 +1,7 @@
 import { sleep } from '../utils'
 import { FocusManager } from '../focusManager'
 import { setIsServer } from './utils'
+import { waitFor } from '@testing-library/react'
 
 describe('focusManager', () => {
   let focusManager: FocusManager
@@ -33,8 +34,7 @@ describe('focusManager', () => {
 
     focusManager.setEventListener(setup)
 
-    await sleep(30)
-    expect(count).toEqual(1)
+    await waitFor(() => expect(count).toEqual(1))
     expect(focusManager.isFocused()).toBeTruthy()
   })
 

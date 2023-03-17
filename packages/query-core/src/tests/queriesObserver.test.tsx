@@ -1,5 +1,11 @@
 import { waitFor } from '@testing-library/react'
-import { sleep, queryKey, createQueryClient, mockLogger } from './utils'
+import {
+  sleep,
+  queryKey,
+  createQueryClient,
+  mockLogger,
+  flushMicroTasks,
+} from './utils'
 import type { QueryClient, QueryObserverResult } from '..'
 import { QueriesObserver, QueryObserver } from '..'
 import type { QueryKey } from '..'
@@ -29,7 +35,7 @@ describe('queriesObserver', () => {
     const unsubscribe = observer.subscribe((result) => {
       observerResult = result
     })
-    await sleep(1)
+    await flushMicroTasks()
     unsubscribe()
     expect(observerResult).toMatchObject([{ data: 1 }, { data: 2 }])
   })
@@ -46,7 +52,7 @@ describe('queriesObserver', () => {
     const unsubscribe = observer.subscribe((result) => {
       observerResult = result
     })
-    await sleep(1)
+    await flushMicroTasks()
     unsubscribe()
     expect(observerResult).toMatchObject([{ data: 1 }, { data: 2 }])
 
@@ -73,9 +79,9 @@ describe('queriesObserver', () => {
     const unsubscribe = observer.subscribe((result) => {
       results.push(result)
     })
-    await sleep(1)
+    await flushMicroTasks()
     queryClient.setQueryData(key2, 3)
-    await sleep(1)
+    await flushMicroTasks()
     unsubscribe()
     expect(results.length).toBe(6)
     expect(results[0]).toMatchObject([
@@ -118,9 +124,9 @@ describe('queriesObserver', () => {
     const unsubscribe = observer.subscribe((result) => {
       results.push(result)
     })
-    await sleep(1)
+    await flushMicroTasks()
     observer.setQueries([{ queryKey: key2, queryFn: queryFn2 }])
-    await sleep(1)
+    await flushMicroTasks()
     const queryCache = queryClient.getQueryCache()
     expect(queryCache.find(key1, { type: 'active' })).toBeUndefined()
     expect(queryCache.find(key2, { type: 'active' })).toBeDefined()
@@ -165,12 +171,12 @@ describe('queriesObserver', () => {
     const unsubscribe = observer.subscribe((result) => {
       results.push(result)
     })
-    await sleep(1)
+    await flushMicroTasks()
     observer.setQueries([
       { queryKey: key2, queryFn: queryFn2 },
       { queryKey: key1, queryFn: queryFn1 },
     ])
-    await sleep(1)
+    await flushMicroTasks()
     unsubscribe()
     expect(results.length).toBe(6)
     expect(results[0]).toMatchObject([
@@ -213,12 +219,12 @@ describe('queriesObserver', () => {
     const unsubscribe = observer.subscribe((result) => {
       results.push(result)
     })
-    await sleep(1)
+    await flushMicroTasks()
     observer.setQueries([
       { queryKey: key1, queryFn: queryFn1 },
       { queryKey: key2, queryFn: queryFn2 },
     ])
-    await sleep(1)
+    await flushMicroTasks()
     unsubscribe()
     expect(results.length).toBe(5)
     expect(results[0]).toMatchObject([
@@ -253,7 +259,7 @@ describe('queriesObserver', () => {
       { queryKey: key2, queryFn: queryFn2 },
     ])
     const unsubscribe = observer.subscribe(() => undefined)
-    await sleep(1)
+    await flushMicroTasks()
     unsubscribe()
     expect(queryFn1).toHaveBeenCalledTimes(1)
     expect(queryFn2).toHaveBeenCalledTimes(1)
@@ -265,7 +271,7 @@ describe('queriesObserver', () => {
       {
         queryKey: key1,
         queryFn: async () => {
-          await sleep(20)
+          await flushMicroTasks()
           return 1
         },
       },

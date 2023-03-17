@@ -1,5 +1,11 @@
 import { waitFor } from '@testing-library/react'
-import { queryKey, sleep, executeMutation, createQueryClient } from './utils'
+import {
+  queryKey,
+  sleep,
+  executeMutation,
+  createQueryClient,
+  flushMicroTasks,
+} from './utils'
 import { MutationCache, MutationObserver } from '..'
 
 describe('mutationCache', () => {
@@ -40,12 +46,12 @@ describe('mutationCache', () => {
       const states: Array<number> = []
       const onError = async () => {
         states.push(1)
-        await sleep(1)
+        await flushMicroTasks()
         states.push(2)
       }
       const onSettled = async () => {
         states.push(5)
-        await sleep(1)
+        await flushMicroTasks()
         states.push(6)
       }
       const testCache = new MutationCache({ onError, onSettled })
@@ -58,12 +64,12 @@ describe('mutationCache', () => {
           mutationFn: () => Promise.reject('error'),
           onError: async () => {
             states.push(3)
-            await sleep(1)
+            await flushMicroTasks()
             states.push(4)
           },
           onSettled: async () => {
             states.push(7)
-            await sleep(1)
+            await flushMicroTasks()
             states.push(8)
           },
         })
@@ -113,12 +119,12 @@ describe('mutationCache', () => {
       const states: Array<number> = []
       const onSuccess = async () => {
         states.push(1)
-        await sleep(1)
+        await flushMicroTasks()
         states.push(2)
       }
       const onSettled = async () => {
         states.push(5)
-        await sleep(1)
+        await flushMicroTasks()
         states.push(6)
       }
       const testCache = new MutationCache({ onSuccess, onSettled })
@@ -130,12 +136,12 @@ describe('mutationCache', () => {
         mutationFn: () => Promise.resolve({ data: 5 }),
         onSuccess: async () => {
           states.push(3)
-          await sleep(1)
+          await flushMicroTasks()
           states.push(4)
         },
         onSettled: async () => {
           states.push(7)
-          await sleep(1)
+          await flushMicroTasks()
           states.push(8)
         },
       })
@@ -168,7 +174,7 @@ describe('mutationCache', () => {
       const states: Array<number> = []
       const onMutate = async () => {
         states.push(1)
-        await sleep(1)
+        await flushMicroTasks()
         states.push(2)
       }
       const testCache = new MutationCache({ onMutate })
@@ -180,7 +186,7 @@ describe('mutationCache', () => {
         mutationFn: () => Promise.resolve({ data: 5 }),
         onMutate: async () => {
           states.push(3)
-          await sleep(1)
+          await flushMicroTasks()
           states.push(4)
         },
       })
@@ -256,7 +262,6 @@ describe('mutationCache', () => {
       })
 
       expect(testCache.getAll()).toHaveLength(1)
-      await sleep(10)
       await waitFor(() => {
         expect(testCache.getAll()).toHaveLength(0)
       })
@@ -275,11 +280,10 @@ describe('mutationCache', () => {
       expect(queryClient.getMutationCache().getAll()).toHaveLength(0)
       observer.mutate(1)
       expect(queryClient.getMutationCache().getAll()).toHaveLength(1)
-      await sleep(10)
+      await flushMicroTasks()
       expect(queryClient.getMutationCache().getAll()).toHaveLength(1)
       unsubscribe()
       expect(queryClient.getMutationCache().getAll()).toHaveLength(1)
-      await sleep(10)
       await waitFor(() => {
         expect(queryClient.getMutationCache().getAll()).toHaveLength(0)
       })
@@ -291,7 +295,7 @@ describe('mutationCache', () => {
         variables: 1,
         cacheTime: 10,
         mutationFn: async () => {
-          await sleep(10)
+          await flushMicroTasks()
           return 'update1'
         },
       })
@@ -299,7 +303,7 @@ describe('mutationCache', () => {
       const observer2 = new MutationObserver(queryClient, {
         cacheTime: 10,
         mutationFn: async () => {
-          await sleep(10)
+          await flushMicroTasks()
           return 'update2'
         },
       })
@@ -319,7 +323,6 @@ describe('mutationCache', () => {
       expect(currentMutation['observers'].length).toEqual(0)
       expect(queryClient.getMutationCache().getAll()).toHaveLength(1)
       // wait for cacheTime to gc
-      await sleep(10)
       await waitFor(() => {
         expect(queryClient.getMutationCache().getAll()).toHaveLength(0)
       })

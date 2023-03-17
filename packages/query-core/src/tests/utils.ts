@@ -35,6 +35,8 @@ export function sleep(timeout: number): Promise<void> {
   })
 }
 
+export const flushMicroTasks = () => sleep(0)
+
 export function setActTimeout(fn: () => void, ms?: number) {
   return setTimeout(() => {
     act(() => {

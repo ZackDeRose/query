@@ -4,6 +4,7 @@ import {
   mockVisibilityState,
   mockLogger,
   createQueryClient,
+  flushMicroTasks,
 } from './utils'
 import type {
   QueryCache,
@@ -196,8 +197,6 @@ describe('query', () => {
       .mockResolvedValue('data')
 
     queryClient.prefetchQuery(key, queryFn)
-
-    await sleep(10)
 
     expect(queryFn).toHaveBeenCalledTimes(1)
     const args = queryFn.mock.calls[0]![0]

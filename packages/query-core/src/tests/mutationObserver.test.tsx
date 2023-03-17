@@ -1,5 +1,5 @@
 import { waitFor } from '@testing-library/react'
-import { createQueryClient, sleep } from './utils'
+import { createQueryClient, flushMicroTasks, sleep } from './utils'
 import type { QueryClient } from '..'
 import { MutationObserver } from '..'
 
@@ -18,7 +18,7 @@ describe('mutationObserver', () => {
   test('onUnsubscribe should not remove the current mutation observer if there is still a subscription', async () => {
     const mutation = new MutationObserver(queryClient, {
       mutationFn: async (text: string) => {
-        await sleep(20)
+        await flushMicroTasks()
         return text
       },
     })
@@ -47,7 +47,7 @@ describe('mutationObserver', () => {
   test('should not notify listeners if options.listeners is set to false', async () => {
     const mutation = new MutationObserver(queryClient, {
       mutationFn: async (text: string) => {
-        await sleep(20)
+        await flushMicroTasks()
         return text
       },
     })

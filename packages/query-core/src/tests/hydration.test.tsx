@@ -1,11 +1,13 @@
 import {
   createQueryClient,
   executeMutation,
+  flushMicroTasks,
   mockNavigatorOnLine,
   sleep,
 } from './utils'
 import { QueryCache } from '../queryCache'
 import { dehydrate, hydrate } from '../hydration'
+import { waitFor } from '@testing-library/react'
 
 async function fetchData<TData>(value: TData, ms?: number): Promise<TData> {
   await sleep(ms || 0)
@@ -90,17 +92,12 @@ describe('dehydration and rehydration', () => {
     const dehydrated = dehydrate(queryClient)
     const stringified = JSON.stringify(dehydrated)
 
-    await sleep(20)
-
-    // ---
-
     const parsed = JSON.parse(stringified)
     const hydrationCache = new QueryCache()
     const hydrationClient = createQueryClient({ queryCache: hydrationCache })
     hydrate(hydrationClient, parsed)
     expect(hydrationCache.find(['string'])?.state.data).toBe('string')
-    await sleep(100)
-    expect(hydrationCache.find(['string'])).toBeTruthy()
+    await waitFor(() => expect(hydrationCache.find(['string'])).toBeTruthy())
 
     queryClient.clear()
     hydrationClient.clear()
@@ -273,10 +270,8 @@ describe('dehydration and rehydration', () => {
     consoleMock.mockImplementation(() => undefined)
     const onlineMock = mockNavigatorOnLine(false)
 
-    const serverAddTodo = jest
-      .fn()
-      .mockImplementation(() => Promise.reject('offline'))
-    const serverOnMutate = jest.fn().mockImplementation((variables) => {
+    const serverAddTodo = jest.fn(() => Promise.reject('offline'))
+    const serverOnMutate = jest.fn((variables) => {
       const optimisticTodo = { id: 1, text: variables.text }
       return { optimisticTodo }
     })
@@ -297,7 +292,7 @@ describe('dehydration and rehydration', () => {
       variables: { text: 'text' },
     }).catch(() => undefined)
 
-    await sleep(50)
+    await flushMicroTasks()
 
     const dehydrated = dehydrate(serverClient)
     const stringified = JSON.stringify(dehydrated)
@@ -366,7 +361,6 @@ describe('dehydration and rehydration', () => {
       variables: { text: 'text' },
     }).catch(() => undefined)
 
-    await sleep(1)
     const dehydrated = dehydrate(queryClient, { dehydrateMutations: false })
 
     expect(dehydrated.mutations.length).toBe(0)
@@ -397,12 +391,10 @@ describe('dehydration and rehydration', () => {
     }).catch(() => undefined)
 
     // Dehydrate mutation between retries
-    await sleep(1)
     const dehydrated = dehydrate(queryClient)
 
     expect(dehydrated.mutations.length).toBe(0)
 
-    await sleep(30)
     queryClient.clear()
     consoleMock.mockRestore()
   })

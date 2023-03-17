@@ -1,3 +1,4 @@
+import { waitFor } from '@testing-library/react'
 import { OnlineManager } from '../onlineManager'
 import { setIsServer, sleep } from './utils'
 
@@ -40,8 +41,7 @@ describe('onlineManager', () => {
 
     onlineManager.setEventListener(setup)
 
-    await sleep(30)
-    expect(count).toEqual(1)
+    await waitFor(() => expect(count).toEqual(1))
     expect(onlineManager.isOnline()).toBeFalsy()
   })
 
