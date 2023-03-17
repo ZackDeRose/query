@@ -24,7 +24,6 @@ describe('queryCache', () => {
       const unsubscribe = queryCache.subscribe(subscriber)
       queryClient.setQueryData(key, 'foo')
       const query = queryCache.find(key)
-      await sleep(1)
       expect(subscriber).toHaveBeenCalledWith({ query, type: 'added' })
       unsubscribe()
     })
@@ -34,7 +33,6 @@ describe('queryCache', () => {
       const callback = jest.fn()
       queryCache.subscribe(callback)
       queryClient.prefetchQuery(key, () => 'data')
-      await sleep(100)
       expect(callback).toHaveBeenCalled()
     })
 
@@ -78,7 +76,6 @@ describe('queryCache', () => {
       queryCache.subscribe(callback)
       queryClient.prefetchQuery(key, () => 'data')
       const query = queryCache.find(key)
-      await sleep(100)
       expect(callback).toHaveBeenCalledWith({ query, type: 'added' })
     })
 
@@ -89,7 +86,6 @@ describe('queryCache', () => {
       queryClient.prefetchQuery(key, () => 'data', {
         initialData: 'initial',
       })
-      await sleep(100)
       expect(callback).toHaveBeenCalled()
     })
   })

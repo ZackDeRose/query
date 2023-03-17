@@ -4,6 +4,7 @@ import {
   expectType,
   mockLogger,
   createQueryClient,
+  flushMicroTasks,
 } from './utils'
 import type { QueryClient, QueryObserverResult } from '..'
 import { QueryObserver, focusManager } from '..'
@@ -25,7 +26,6 @@ describe('queryObserver', () => {
     const queryFn = jest.fn<string, unknown[]>().mockReturnValue('data')
     const observer = new QueryObserver(queryClient, { queryKey: key, queryFn })
     const unsubscribe = observer.subscribe(() => undefined)
-    await sleep(1)
     unsubscribe()
     expect(queryFn).toHaveBeenCalledTimes(1)
   })
@@ -41,9 +41,9 @@ describe('queryObserver', () => {
     const unsubscribe = observer.subscribe((result) => {
       results.push(result)
     })
-    await sleep(1)
+    await flushMicroTasks()
     observer.setOptions({ queryKey: key2, queryFn: () => 2 })
-    await sleep(1)
+    await flushMicroTasks()
     unsubscribe()
     expect(results.length).toBe(4)
     expect(results[0]).toMatchObject({ data: undefined, status: 'loading' })

@@ -214,8 +214,6 @@ describe('query', () => {
       return 'data'
     })
 
-    await sleep(10)
-
     // Subscribe and unsubscribe to simulate cancellation because the last observer unsubscribed
     const observer = new QueryObserver(queryClient, {
       queryKey: key,
@@ -224,14 +222,13 @@ describe('query', () => {
     const unsubscribe = observer.subscribe(() => undefined)
     unsubscribe()
 
-    await sleep(100)
-
-    const query = queryCache.find(key)!
-
-    expect(query.state).toMatchObject({
-      data: 'data',
-      status: 'success',
-      dataUpdateCount: 1,
+    await waitFor(() => {
+      const query = queryCache.find(key)!
+      return expect(query.state).toMatchObject({
+        data: 'data',
+        status: 'success',
+        dataUpdateCount: 1,
+      })
     })
   })
 
@@ -243,8 +240,6 @@ describe('query', () => {
       return signal?.aborted ? 'aborted' : 'data'
     })
 
-    await sleep(10)
-
     // Subscribe and unsubscribe to simulate cancellation because the last observer unsubscribed
     const observer = new QueryObserver(queryClient, {
       queryKey: key,
@@ -253,14 +248,14 @@ describe('query', () => {
     const unsubscribe = observer.subscribe(() => undefined)
     unsubscribe()
 
-    await sleep(100)
+    await waitFor(() => {
+      const query = queryCache.find(key)!
 
-    const query = queryCache.find(key)!
-
-    expect(query.state).toMatchObject({
-      data: undefined,
-      status: 'loading',
-      fetchStatus: 'idle',
+      expect(query.state).toMatchObject({
+        data: undefined,
+        status: 'loading',
+        fetchStatus: 'idle',
+      })
     })
   })
 
@@ -280,7 +275,7 @@ describe('query', () => {
         signal.onabort = onAbort
         signal.addEventListener('abort', abortListener)
       }
-      await sleep(10)
+      await flushMicroTasks()
       if (signal) {
         signal.onabort = null
         signal.removeEventListener('abort', abortListener)
@@ -308,9 +303,7 @@ describe('query', () => {
 
     query.cancel()
 
-    await sleep(100)
-
-    expect(signal?.aborted).toBe(true)
+    await waitFor(() => expect(signal?.aborted).toBe(true))
     expect(onAbort).toHaveBeenCalledTimes(1)
     expect(abortListener).toHaveBeenCalledTimes(1)
     expect(isCancelledError(error)).toBe(true)
@@ -322,7 +315,7 @@ describe('query', () => {
     const queryFn = jest.fn<unknown, unknown[]>()
 
     queryFn.mockImplementation(async () => {
-      await sleep(10)
+      await flushMicroTasks()
       throw new Error()
     })
 
@@ -340,9 +333,7 @@ describe('query', () => {
     const query = queryCache.find(key)!
     query.cancel()
 
-    await sleep(100)
-
-    expect(queryFn).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1))
     expect(isCancelledError(error)).toBe(true)
   })
 
@@ -352,7 +343,7 @@ describe('query', () => {
     const queryFn = jest.fn<unknown, unknown[]>()
 
     queryFn.mockImplementation(async () => {
-      await sleep(10)
+      await flushMicroTasks()
       throw new Error()
     })
 
@@ -368,10 +359,8 @@ describe('query', () => {
     // Reset the query while it is loading
     query.reset()
 
-    await sleep(100)
-
     // The query should
-    expect(queryFn).toHaveBeenCalledTimes(1) // have been called,
+    await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1)) // have been called,
     expect(query.state.error).toBe(null) // not have an error, and
     expect(query.state.fetchStatus).toBe('idle') // not be loading any longer
   })
@@ -388,11 +377,9 @@ describe('query', () => {
 
     queryClient.prefetchQuery(key, queryFn)
     const query = queryCache.find(key)!
-    await sleep(10)
     query.cancel()
-    await sleep(100)
 
-    expect(queryFn).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1))
     expect(isCancelledError(query.state.error)).toBe(true)
     const result = await query.fetch()
     expect(result).toBe('data')
@@ -405,7 +392,6 @@ describe('query', () => {
     await queryClient.prefetchQuery(key, async () => 'data')
     const query = queryCache.find(key)!
     query.cancel()
-    await sleep(10)
     expect(query.state.data).toBe('data')
   })
 
@@ -417,7 +403,6 @@ describe('query', () => {
     })
     const query = queryCache.find(key)!
     query.cancel()
-    await sleep(10)
 
     expect(isError(query.state.error)).toBe(true)
     expect(isCancelledError(query.state.error)).toBe(false)
@@ -500,14 +485,11 @@ describe('query', () => {
       cacheTime: 10,
     })
     const unsubscribe = observer.subscribe(() => undefined)
-    await sleep(20)
     expect(queryCache.find(key)).toBeDefined()
     observer.refetch()
     unsubscribe()
-    await sleep(10)
     // unsubscribe should not remove even though cacheTime has elapsed b/c query is still fetching
     expect(queryCache.find(key)).toBeDefined()
-    await sleep(10)
     // should be removed after an additional staleTime wait
     await waitFor(() => expect(queryCache.find(key)).toBeUndefined())
   })
@@ -521,13 +503,10 @@ describe('query', () => {
     })
     expect(queryCache.find(key)).toBeDefined()
     const unsubscribe = observer.subscribe(() => undefined)
-    await sleep(100)
     expect(queryCache.find(key)).toBeDefined()
     unsubscribe()
-    await sleep(100)
-    expect(queryCache.find(key)).toBeUndefined()
+    await waitFor(() => expect(queryCache.find(key)).toBeUndefined())
     queryClient.setQueryData(key, 'data')
-    await sleep(100)
     expect(queryCache.find(key)).toBeDefined()
   })
 
@@ -758,7 +737,6 @@ describe('query', () => {
     })
 
     // Clean-up
-    await sleep(20)
     query['dispatch'] = dispatchOriginal
   })
 
@@ -793,8 +771,9 @@ describe('query', () => {
     })
 
     const unsubscribe = observer.subscribe(() => undefined)
-    await sleep(10)
-    expect(mockLogger.error).toHaveBeenCalledWith('Missing queryFn')
+    await waitFor(() =>
+      expect(mockLogger.error).toHaveBeenCalledWith('Missing queryFn'),
+    )
 
     unsubscribe()
   })
@@ -814,14 +793,14 @@ describe('query', () => {
       observerResult = result
     })
 
-    await sleep(10)
-
     const error = new Error('undefined')
 
-    expect(observerResult).toMatchObject({
-      isError: true,
-      error,
-    })
+    await waitFor(() =>
+      expect(observerResult).toMatchObject({
+        isError: true,
+        error,
+      }),
+    )
 
     expect(mockLogger.error).toHaveBeenCalledWith(error)
     unsubscribe()
@@ -864,7 +843,6 @@ describe('query', () => {
     })
 
     // Clean-up
-    await sleep(20)
     query['dispatch'] = dispatchOriginal
   })
 

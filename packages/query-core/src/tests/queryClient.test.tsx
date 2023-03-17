@@ -1,7 +1,13 @@
 import { waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
-import { sleep, queryKey, mockLogger, createQueryClient } from './utils'
+import {
+  sleep,
+  queryKey,
+  mockLogger,
+  createQueryClient,
+  flushMicroTasks,
+} from './utils'
 import type {
   QueryCache,
   QueryClient,
@@ -68,7 +74,7 @@ describe('queryClient', () => {
     test('should not trigger a fetch', async () => {
       const key = queryKey()
       queryClient.setQueryDefaults(key, { queryFn: () => 'data' })
-      await sleep(1)
+      await flushMicroTasks()
       const data = queryClient.getQueryData(key)
       expect(data).toBeUndefined()
     })
@@ -804,20 +810,19 @@ describe('queryClient', () => {
         })
       } catch {}
       queryClient.fetchQuery(key1, async () => {
-        await sleep(1000)
+        await sleep(20)
         return 'data2'
       })
       try {
         queryClient.fetchQuery(key2, async () => {
-          await sleep(1000)
+          await sleep(20)
           return Promise.reject<unknown>('err2')
         })
       } catch {}
       queryClient.fetchQuery(key3, async () => {
-        await sleep(1000)
+        await sleep(20)
         return 'data3'
       })
-      await sleep(10)
       await queryClient.cancelQueries()
       const state1 = queryClient.getQueryState(key1)
       const state2 = queryClient.getQueryState(key2)
@@ -844,10 +849,9 @@ describe('queryClient', () => {
         return 'data'
       })
       queryClient.fetchQuery(key1, async () => {
-        await sleep(1000)
+        await sleep(20)
         return 'data2'
       })
-      await sleep(10)
       await queryClient.cancelQueries(key1, {}, { revert: false })
       const state1 = queryClient.getQueryState(key1)
       expect(state1).toMatchObject({
