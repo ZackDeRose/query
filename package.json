@@ -9,7 +9,7 @@
     "test:ci": "nx affected --targets=test:lib,test:types,test:eslint,test:format --parallel=5",
     "test:eslint": "nx affected --target=test:eslint --parallel=5",
     "test:format": "pnpm run prettier --check",
-    "test:lib": "pnpm --filter \"./packages/**\" run test:lib:dev",
+    "test:lib": "pnpm --filter \"./packages/**\" run test:lib",
     "test:lib:dev": "pnpm --filter \"./packages/**\" run test:lib:dev",
     "test:build": "nx run-many --target=test:build --projects=root",
     "test:types": "nx affected --target=test:types --parallel=5",
