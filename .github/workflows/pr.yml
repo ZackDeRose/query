@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: pnpm --filter "./packages/**" --filter query --prefer-offline install
       - name: Run Tests
-        run: pnpm test:lib --base=${{ github.event.pull_request.base.sha }}
+        run: pnpm test:lib
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
   lint:
