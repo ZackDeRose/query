@@ -158,7 +158,7 @@ async function run() {
         const pkg = packages.find((p) =>
           file.startsWith(path.join('packages', p.packageDir, p.srcDir)),
         )
-        if (pkg && !changedPackages.find((d) => d.name === pkg.name)) {
+        if (pkg && !acc.find((d) => d.name === pkg.name)) {
           acc.push(pkg)
         }
         return acc
@@ -357,7 +357,10 @@ async function run() {
   }
 
   console.info('Building packages...')
-  execSync(`pnpm run build`, { encoding: 'utf8', stdio: 'inherit' })
+  execSync(`pnpm run build --skip-nx-cache`, {
+    encoding: 'utf8',
+    stdio: 'inherit',
+  })
   console.info('')
 
   console.info('Validating packages...')

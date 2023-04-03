@@ -23,18 +23,16 @@ export { isCancelledError } from './retryer'
 export {
   dehydrate,
   hydrate,
-  defaultShouldDehydrateMutation,
   defaultShouldDehydrateQuery,
+  defaultShouldDehydrateMutation,
 } from './hydration'
 
 // Types
 export * from './types'
 export type { Query, QueryState } from './query'
-export type { Mutation } from './mutation'
+export type { Mutation, MutationState } from './mutation'
 export type {
   DehydrateOptions,
   DehydratedState,
   HydrateOptions,
-  ShouldDehydrateMutationFunction,
-  ShouldDehydrateQueryFunction,
 } from './hydration'

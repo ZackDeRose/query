@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { fireEvent, screen, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, onlineManager } from '@tanstack/react-query'
 import { defaultPanelSize, sortFns } from '../utils'
 import {
   getByTextContent,
@@ -10,6 +10,14 @@ import {
   createQueryClient,
 } from './utils'
 import { vi } from 'vitest'
+import UserEvent from '@testing-library/user-event'
+
+class CustomError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CustomError'
+  }
+}
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -470,6 +478,31 @@ describe('ReactQueryDevtools', () => {
     expect(count).toBe(2)
   })
 
+  it('should inform onlineManager when offline mode is simulated', () => {
+    const { queryClient } = createQueryClient()
+    const online: Array<boolean> = []
+
+    const unsubscribe = onlineManager.subscribe(() => {
+      online.push(onlineManager.isOnline())
+    })
+
+    renderWithClient(queryClient, <div />, {
+      initialIsOpen: true,
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /mock offline behavior/i }),
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /restore offline mock/i }),
+    )
+
+    expect(online).toStrictEqual([false, true])
+
+    unsubscribe()
+  })
+
   it('should sort the queries according to the sorting filter', async () => {
     const { queryClient, queryCache } = createQueryClient()
 
@@ -861,5 +894,145 @@ describe('ReactQueryDevtools', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
     expect(parentElement).toHaveStyle(parentPaddings)
+  })
+
+  it('should simulate loading state', async () => {
+    const { queryClient } = createQueryClient()
+    let count = 0
+    function App() {
+      const { data, fetchStatus } = useQuery({
+        queryKey: ['key'],
+        queryFn: () => {
+          count++
+          return Promise.resolve('test')
+        },
+      })
+
+      return (
+        <div>
+          <h1>
+            {data ?? 'No data'}, {fetchStatus}
+          </h1>
+        </div>
+      )
+    }
+
+    renderWithClient(queryClient, <App />, {
+      initialIsOpen: true,
+    })
+
+    await screen.findByRole('heading', { name: /test/i })
+
+    const loadingButton = await screen.findByRole('button', {
+      name: 'Trigger loading',
+    })
+    fireEvent.click(loadingButton)
+
+    await waitFor(() => {
+      expect(screen.getByText('Restore loading')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('No data, fetching')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /restore loading/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('test, idle')).toBeInTheDocument()
+    })
+
+    expect(count).toBe(2)
+  })
+
+  it('should simulate error state', async () => {
+    const { queryClient } = createQueryClient()
+    function App() {
+      const { status, error } = useQuery({
+        queryKey: ['key'],
+        queryFn: () => {
+          return Promise.resolve('test')
+        },
+      })
+
+      return (
+        <div>
+          <h1>
+            {!!error ? 'Some error' : 'No error'}, {status}
+          </h1>
+        </div>
+      )
+    }
+
+    renderWithClient(queryClient, <App />, {
+      initialIsOpen: true,
+    })
+
+    const errorButton = await screen.findByRole('button', {
+      name: 'Trigger error',
+    })
+    fireEvent.click(errorButton)
+
+    await waitFor(() => {
+      expect(screen.getByText('Restore error')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Some error, error')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Restore error/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('No error, success')).toBeInTheDocument()
+    })
+  })
+
+  it('should can simulate a specific error', async () => {
+    const { queryClient } = createQueryClient()
+
+    function App() {
+      const { status, error } = useQuery({
+        queryKey: ['key'],
+        queryFn: () => {
+          return Promise.resolve('test')
+        },
+      })
+
+      return (
+        <div data-testid="test">
+          <h1>
+            {error instanceof CustomError
+              ? error.message.toString()
+              : 'No error'}
+            , {status}
+          </h1>
+        </div>
+      )
+    }
+
+    renderWithClient(queryClient, <App />, {
+      initialIsOpen: true,
+      errorTypes: [
+        {
+          name: 'error1',
+          initializer: () => new CustomError('error1'),
+        },
+      ],
+    })
+
+    const errorOption = await screen.findByLabelText('Trigger error:')
+
+    UserEvent.selectOptions(errorOption, 'error1')
+
+    await waitFor(() => {
+      expect(screen.getByText('error1, error')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Restore error/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('No error, success')).toBeInTheDocument()
+    })
   })
 })

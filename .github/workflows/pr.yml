@@ -1,12 +1,19 @@
 name: pr
 on: [pull_request]
-
+env:
+  NX_DAEMON: false
+  NX_VERBOSE_LOGGING: true
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
 jobs:
   test:
     name: 'Test'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
       - uses: pnpm/action-setup@v2.2.4
         with:
           version: 7
@@ -16,7 +23,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm --filter "./packages/**" --filter query --prefer-offline install
-      - run: pnpm nx run-many --target=test:lib --parallel=5
+      - name: Run Tests
+        run: pnpm test:lib
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
   lint:
@@ -24,6 +32,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
       - uses: pnpm/action-setup@v2.2.4
         with:
           version: 7
@@ -33,12 +45,16 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm --filter "./packages/**" --filter query --prefer-offline install
-      - run: pnpm run test:eslint
+      - run: pnpm run test:eslint --base=${{ github.event.pull_request.base.sha }}
   typecheck:
     name: 'Typecheck'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
       - uses: pnpm/action-setup@v2.2.4
         with:
           version: 7
@@ -48,12 +64,16 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm --filter "./packages/**" --filter query --prefer-offline install
-      - run: pnpm run test:types
+      - run: pnpm run test:types --base=${{ github.event.pull_request.base.sha }}
   format:
     name: 'Format'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+          repository: ${{github.event.pull_request.head.repo.full_name}}
       - uses: pnpm/action-setup@v2.2.4
         with:
           version: 7
@@ -63,7 +83,7 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm --filter "./packages/**" --filter query --prefer-offline install
-      - run: pnpm run test:format
+      - run: pnpm run test:format --base=${{ github.event.pull_request.base.sha }}
   test-build:
     name: 'Test Build'
     runs-on: ubuntu-latest

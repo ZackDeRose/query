@@ -8,6 +8,7 @@ import nodeResolve from '@rollup/plugin-node-resolve'
 import commonJS from '@rollup/plugin-commonjs'
 import path from 'path'
 import withSolid from 'rollup-preset-solid'
+import preserveDirectives from 'rollup-plugin-preserve-directives'
 
 type Options = {
   input: string | string[]
@@ -28,11 +29,24 @@ const forceEnvPlugin = (type: 'development' | 'production') =>
     preventAssignment: true,
   })
 
-const babelPlugin = babel({
-  babelHelpers: 'bundled',
-  exclude: /node_modules/,
-  extensions: ['.ts', '.tsx', '.native.ts'],
-})
+const babelPlugin = (type: 'legacy' | 'modern') =>
+  babel({
+    browserslistConfigFile: type === 'modern' ? true : false,
+    targets:
+      type === 'modern'
+        ? ''
+        : {
+            chrome: 73,
+            firefox: 78,
+            edge: 79,
+            safari: 12,
+            ios: 12,
+            opera: 53,
+          },
+    babelHelpers: 'bundled',
+    exclude: /node_modules/,
+    extensions: ['.ts', '.tsx', '.native.ts'],
+  })
 
 export default function rollup(options: RollupOptions): RollupOptions[] {
   return [
@@ -249,15 +263,16 @@ function mjs({
   }
 
   return {
-    // ESM
+    // MJS
     external,
     input,
     output: forceBundle ? bundleOutput : normalOutput,
     plugins: [
-      babelPlugin,
+      babelPlugin('modern'),
       commonJS(),
       nodeResolve({ extensions: ['.ts', '.tsx', '.native.ts'] }),
       forceDevEnv ? forceEnvPlugin('development') : undefined,
+      preserveDirectives(),
     ],
   }
 }
@@ -293,10 +308,11 @@ function esm({
     input,
     output: forceBundle ? bundleOutput : normalOutput,
     plugins: [
-      babelPlugin,
+      babelPlugin('legacy'),
       commonJS(),
       nodeResolve({ extensions: ['.ts', '.tsx', '.native.ts'] }),
       forceDevEnv ? forceEnvPlugin('development') : undefined,
+      preserveDirectives(),
     ],
   }
 }
@@ -334,10 +350,11 @@ function cjs({
     input,
     output: forceBundle ? bundleOutput : normalOutput,
     plugins: [
-      babelPlugin,
+      babelPlugin('legacy'),
       commonJS(),
       nodeResolve({ extensions: ['.ts', '.tsx', '.native.ts'] }),
       forceDevEnv ? forceEnvPlugin('development') : undefined,
+      preserveDirectives(),
     ],
   }
 }
@@ -365,7 +382,7 @@ function umdDev({
     },
     plugins: [
       commonJS(),
-      babelPlugin,
+      babelPlugin('modern'),
       nodeResolve({ extensions: ['.ts', '.tsx', '.native.ts'] }),
       forceEnvPlugin('development'),
     ],
@@ -395,7 +412,7 @@ function umdProd({
     },
     plugins: [
       commonJS(),
-      babelPlugin,
+      babelPlugin('modern'),
       nodeResolve({ extensions: ['.ts', '.tsx', '.native.ts'] }),
       forceEnvPlugin('production'),
       terser({
