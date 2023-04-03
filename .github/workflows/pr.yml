@@ -26,7 +26,7 @@ jobs:
       - name: Run Tests
         uses: nick-fields/retry@v2.8.3
         with:
-          command: pnpm test:lib --base=${{ github.event.pull_request.base.sha }}
+          command: pnpm test:lib
           timeout_minutes: 5
           max_attempts: 3
       - name: Upload coverage to Codecov
