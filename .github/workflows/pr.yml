@@ -19,7 +19,7 @@ jobs:
           repository: ${{github.event.pull_request.head.repo.full_name}}
       - uses: pnpm/action-setup@v2.2.4
         with:
-          version: 7
+          version: 8.3.1
       - uses: actions/setup-node@v3
         with:
           node-version: 16.14.2
@@ -45,7 +45,7 @@ jobs:
           node-version: 16.19.0
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm --filter "./packages/**" --filter query --prefer-offline install
+        run: pnpm --filter "./packages/**" --filter query --prefer-offline install --no-frozen-lockfile
       - name: Derive appropriate SHAs for base and head for `nx affected` commands
         uses: nrwl/nx-set-shas@v2
       - run: |
