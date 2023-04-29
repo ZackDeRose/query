@@ -82,5 +82,5 @@ jobs:
           node-version: 16.14.2
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm --filter "./packages/**" --filter query --prefer-offline install
+        run: pnpm --filter "./packages/**" --filter query --prefer-offline install --no-frozen-lockfile
       - run: pnpm run test:format --base=${{ github.event.pull_request.base.sha }}
