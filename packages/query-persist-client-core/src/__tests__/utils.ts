@@ -4,16 +4,10 @@ import type {
   Persister,
   PersistedClient,
 } from '@tanstack/query-persist-client-core'
+import { vi } from 'vitest'
 
 export function createQueryClient(config?: QueryClientConfig): QueryClient {
-  jest.spyOn(console, 'error').mockImplementation(() => undefined)
-  return new QueryClient({ logger: mockLogger, ...config })
-}
-
-export const mockLogger = {
-  log: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
+  return new QueryClient(config)
 }
 
 export function sleep(timeout: number): Promise<void> {
@@ -41,8 +35,8 @@ export const createMockPersister = (): Persister => {
 
 export const createSpyablePersister = (): Persister => {
   return {
-    persistClient: jest.fn(),
-    restoreClient: jest.fn(),
-    removeClient: jest.fn(),
+    persistClient: vi.fn(),
+    restoreClient: vi.fn(),
+    removeClient: vi.fn(),
   }
 }

@@ -1,4 +1,4 @@
-import { onScopeDispose, reactive } from 'vue-demi'
+import { onScopeDispose, ref } from 'vue-demi'
 
 import {
   flushPromises,
@@ -9,10 +9,16 @@ import {
 import { useQueries } from '../useQueries'
 import { useQueryClient } from '../useQueryClient'
 import { QueryClient } from '../queryClient'
+import { vi } from 'vitest'
+import type { MockedFunction } from 'vitest'
 
-jest.mock('../useQueryClient')
+vi.mock('../useQueryClient')
 
 describe('useQueries', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
   test('should return result for each query', () => {
     const queries = [
       {
@@ -26,16 +32,16 @@ describe('useQueries', () => {
     ]
     const queriesState = useQueries({ queries })
 
-    expect(queriesState).toMatchObject([
+    expect(queriesState.value).toMatchObject([
       {
-        status: 'loading',
-        isLoading: true,
+        status: 'pending',
+        isPending: true,
         isFetching: true,
         isStale: true,
       },
       {
-        status: 'loading',
-        isLoading: true,
+        status: 'pending',
+        isPending: true,
         isFetching: true,
         isStale: true,
       },
@@ -57,16 +63,16 @@ describe('useQueries', () => {
 
     await flushPromises()
 
-    expect(queriesState).toMatchObject([
+    expect(queriesState.value).toMatchObject([
       {
         status: 'success',
-        isLoading: false,
+        isPending: false,
         isFetching: false,
         isStale: true,
       },
       {
         status: 'success',
-        isLoading: false,
+        isPending: false,
         isFetching: false,
         isStale: true,
       },
@@ -88,16 +94,16 @@ describe('useQueries', () => {
 
     await flushPromises()
 
-    expect(queriesState).toMatchObject([
+    expect(queriesState.value).toMatchObject([
       {
         status: 'error',
-        isLoading: false,
+        isPending: false,
         isFetching: false,
         isStale: true,
       },
       {
         status: 'success',
-        isLoading: false,
+        isPending: false,
         isFetching: false,
         isStale: true,
       },
@@ -105,7 +111,7 @@ describe('useQueries', () => {
   })
 
   test('should return state for new queries', async () => {
-    const queries = reactive([
+    const queries = ref([
       {
         queryKey: ['key31'],
         queryFn: getSimpleFetcherWithReturnData('value31'),
@@ -123,9 +129,9 @@ describe('useQueries', () => {
 
     await flushPromises()
 
-    queries.splice(
+    queries.value.splice(
       0,
-      queries.length,
+      queries.value.length,
       {
         queryKey: ['key31'],
         queryFn: getSimpleFetcherWithReturnData('value31'),
@@ -139,19 +145,19 @@ describe('useQueries', () => {
     await flushPromises()
     await flushPromises()
 
-    expect(queriesState.length).toEqual(2)
-    expect(queriesState).toMatchObject([
+    expect(queriesState.value.length).toEqual(2)
+    expect(queriesState.value).toMatchObject([
       {
         data: 'value31',
         status: 'success',
-        isLoading: false,
+        isPending: false,
         isFetching: false,
         isStale: true,
       },
       {
         data: 'value34',
         status: 'success',
-        isLoading: false,
+        isPending: false,
         isFetching: false,
         isStale: true,
       },
@@ -159,7 +165,7 @@ describe('useQueries', () => {
   })
 
   test('should stop listening to changes on onScopeDispose', async () => {
-    const onScopeDisposeMock = onScopeDispose as jest.MockedFunction<
+    const onScopeDisposeMock = onScopeDispose as MockedFunction<
       typeof onScopeDispose
     >
     onScopeDisposeMock.mockImplementationOnce((fn) => fn())
@@ -177,16 +183,16 @@ describe('useQueries', () => {
     const queriesState = useQueries({ queries })
     await flushPromises()
 
-    expect(queriesState).toMatchObject([
+    expect(queriesState.value).toMatchObject([
       {
-        status: 'loading',
-        isLoading: true,
+        status: 'pending',
+        isPending: true,
         isFetching: true,
         isStale: true,
       },
       {
-        status: 'loading',
-        isLoading: true,
+        status: 'pending',
+        isPending: true,
         isFetching: true,
         isStale: true,
       },
@@ -206,27 +212,7 @@ describe('useQueries', () => {
       },
     ]
 
-    useQueries({ queries, queryClient })
-    await flushPromises()
-
-    expect(useQueryClient).toHaveBeenCalledTimes(0)
-  })
-
-  test('should use queryClient provided via query options', async () => {
-    const queryClient = new QueryClient()
-    const queries = [
-      {
-        queryKey: ['key41'],
-        queryFn: simpleFetcher,
-        queryClient,
-      },
-      {
-        queryKey: ['key42'],
-        queryFn: simpleFetcher,
-      },
-    ]
-
-    useQueries({ queries })
+    useQueries({ queries }, queryClient)
     await flushPromises()
 
     expect(useQueryClient).toHaveBeenCalledTimes(0)

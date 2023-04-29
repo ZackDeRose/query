@@ -1,7 +1,13 @@
+'use client'
 import * as React from 'react'
-import { useSyncExternalStore } from './useSyncExternalStore'
 
-import type { QueryKey, QueryFunction } from '@tanstack/query-core'
+import type {
+  QueryKey,
+  QueryFunction,
+  QueriesPlaceholderDataFunction,
+  QueryClient,
+  DefaultError,
+} from '@tanstack/query-core'
 import { notifyManager, QueriesObserver } from '@tanstack/query-core'
 import { useQueryClient } from './QueryClientProvider'
 import type { UseQueryOptions, UseQueryResult } from './types'
@@ -20,13 +26,18 @@ import {
 } from './suspense'
 
 // This defines the `UseQueryOptions` that are accepted in `QueriesOptions` & `GetOptions`.
-// - `context` is omitted as it is passed as a root-level option to `useQueries` instead.
+// `placeholderData` function does not have a parameter
 type UseQueryOptionsForUseQueries<
   TQueryFnData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TData = TQueryFnData,
   TQueryKey extends QueryKey = QueryKey,
-> = Omit<UseQueryOptions<TQueryFnData, TError, TData, TQueryKey>, 'context'>
+> = Omit<
+  UseQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  'placeholderData'
+> & {
+  placeholderData?: TQueryFnData | QueriesPlaceholderDataFunction<TQueryFnData>
+}
 
 // Avoid TS depth-limit error in case of large array literal
 type MAXIMUM_DEPTH = 20
@@ -55,14 +66,9 @@ type GetOptions<T> =
         queryFn?: QueryFunction<infer TQueryFnData, infer TQueryKey>
         select: (data: any) => infer TData
       }
-    ? UseQueryOptionsForUseQueries<TQueryFnData, unknown, TData, TQueryKey>
+    ? UseQueryOptionsForUseQueries<TQueryFnData, Error, TData, TQueryKey>
     : T extends { queryFn?: QueryFunction<infer TQueryFnData, infer TQueryKey> }
-    ? UseQueryOptionsForUseQueries<
-        TQueryFnData,
-        unknown,
-        TQueryFnData,
-        TQueryKey
-      >
+    ? UseQueryOptionsForUseQueries<TQueryFnData, Error, TQueryFnData, TQueryKey>
     : // Fallback
       UseQueryOptionsForUseQueries
 
@@ -143,24 +149,29 @@ export type QueriesResults<
       any
     >[]
   ? // Dynamic-size (homogenous) UseQueryOptions array: map directly to array of results
-    UseQueryResult<unknown extends TData ? TQueryFnData : TData, TError>[]
+    UseQueryResult<
+      unknown extends TData ? TQueryFnData : TData,
+      unknown extends TError ? DefaultError : TError
+    >[]
   : // Fallback
     UseQueryResult[]
 
-export function useQueries<T extends any[]>({
-  queries,
-  context,
-}: {
-  queries: readonly [...QueriesOptions<T>]
-  context?: UseQueryOptions['context']
-}): QueriesResults<T> {
-  const queryClient = useQueryClient({ context })
+export function useQueries<T extends any[]>(
+  {
+    queries,
+  }: {
+    queries: readonly [...QueriesOptions<T>]
+  },
+  queryClient?: QueryClient,
+): QueriesResults<T> {
+  const client = useQueryClient(queryClient)
   const isRestoring = useIsRestoring()
+  const errorResetBoundary = useQueryErrorResetBoundary()
 
   const defaultedQueries = React.useMemo(
     () =>
       queries.map((options) => {
-        const defaultedOptions = queryClient.defaultQueryOptions(options)
+        const defaultedOptions = client.defaultQueryOptions(options)
 
         // Make sure the results are already in fetching state before subscribing or updating options
         defaultedOptions._optimisticResults = isRestoring
@@ -169,16 +180,23 @@ export function useQueries<T extends any[]>({
 
         return defaultedOptions
       }),
-    [queries, queryClient, isRestoring],
+    [queries, client, isRestoring],
   )
 
+  defaultedQueries.forEach((query) => {
+    ensureStaleTime(query)
+    ensurePreventErrorBoundaryRetry(query, errorResetBoundary)
+  })
+
+  useClearResetErrorBoundary(errorResetBoundary)
+
   const [observer] = React.useState(
-    () => new QueriesObserver(queryClient, defaultedQueries),
+    () => new QueriesObserver(client, defaultedQueries),
   )
 
   const optimisticResult = observer.getOptimisticResult(defaultedQueries)
 
-  useSyncExternalStore(
+  React.useSyncExternalStore(
     React.useCallback(
       (onStoreChange) =>
         isRestoring
@@ -195,15 +213,6 @@ export function useQueries<T extends any[]>({
     // these changes should already be reflected in the optimistic result.
     observer.setQueries(defaultedQueries, { listeners: false })
   }, [defaultedQueries, observer])
-
-  const errorResetBoundary = useQueryErrorResetBoundary()
-
-  defaultedQueries.forEach((query) => {
-    ensurePreventErrorBoundaryRetry(query, errorResetBoundary)
-    ensureStaleTime(query)
-  })
-
-  useClearResetErrorBoundary(errorResetBoundary)
 
   const shouldAtLeastOneSuspend = optimisticResult.some((result, index) =>
     shouldSuspend(defaultedQueries[index], result, isRestoring),
@@ -228,14 +237,14 @@ export function useQueries<T extends any[]>({
   if (suspensePromises.length > 0) {
     throw Promise.all(suspensePromises)
   }
-
+  const observerQueries = observer.getQueries()
   const firstSingleResultWhichShouldThrow = optimisticResult.find(
     (result, index) =>
       getHasError({
         result,
         errorResetBoundary,
-        useErrorBoundary: defaultedQueries[index]?.useErrorBoundary ?? false,
-        query: observer.getQueries()[index]!,
+        throwOnError: defaultedQueries[index]?.throwOnError ?? false,
+        query: observerQueries[index]!,
       }),
   )
 

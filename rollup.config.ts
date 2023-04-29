@@ -1,4 +1,4 @@
-import type { OutputOptions, RollupOptions } from 'rollup'
+import type { OutputOptions, Plugin, RollupOptions } from 'rollup'
 import babel from '@rollup/plugin-babel'
 import { terser } from 'rollup-plugin-terser'
 import size from 'rollup-plugin-size'
@@ -7,6 +7,8 @@ import replace from '@rollup/plugin-replace'
 import nodeResolve from '@rollup/plugin-node-resolve'
 import commonJS from '@rollup/plugin-commonjs'
 import path from 'path'
+import withSolid from 'rollup-preset-solid'
+import preserveDirectives from 'rollup-plugin-preserve-directives'
 
 type Options = {
   input: string | string[]
@@ -27,11 +29,24 @@ const forceEnvPlugin = (type: 'development' | 'production') =>
     preventAssignment: true,
   })
 
-const babelPlugin = babel({
-  babelHelpers: 'bundled',
-  exclude: /node_modules/,
-  extensions: ['.ts', '.tsx', '.native.ts'],
-})
+const babelPlugin = (type: 'legacy' | 'modern') =>
+  babel({
+    browserslistConfigFile: type === 'modern' ? true : false,
+    targets:
+      type === 'modern'
+        ? ''
+        : {
+            chrome: '73',
+            firefox: '78',
+            edge: '79',
+            safari: '12',
+            ios: '12',
+            opera: '53',
+          },
+    babelHelpers: 'bundled',
+    exclude: /node_modules/,
+    extensions: ['.ts', '.tsx', '.native.ts'],
+  })
 
 export default function rollup(options: RollupOptions): RollupOptions[] {
   return [
@@ -40,7 +55,7 @@ export default function rollup(options: RollupOptions): RollupOptions[] {
       packageDir: 'packages/query-core',
       jsName: 'QueryCore',
       outputFile: 'index',
-      entryFile: ['src/index.ts', 'src/logger.native.ts'],
+      entryFile: ['src/index.ts'],
       globals: {},
     }),
     ...buildConfigs({
@@ -89,24 +104,14 @@ export default function rollup(options: RollupOptions): RollupOptions[] {
       packageDir: 'packages/react-query',
       jsName: 'ReactQuery',
       outputFile: 'index',
-      entryFile: [
-        'src/index.ts',
-        'src/reactBatchedUpdates.native.ts',
-        'src/useSyncExternalStore.native.ts',
-      ],
+      entryFile: ['src/index.ts'],
       globals: {
         react: 'React',
         'react-dom': 'ReactDOM',
         '@tanstack/query-core': 'QueryCore',
-        'use-sync-external-store/shim/index.js': 'UseSyncExternalStore',
-        'use-sync-external-store/shim/index.native.js':
-          'UseSyncExternalStoreNative',
         'react-native': 'ReactNative',
       },
-      bundleUMDGlobals: [
-        '@tanstack/query-core',
-        'use-sync-external-store/shim/index.js',
-      ],
+      bundleUMDGlobals: ['@tanstack/query-core'],
     }),
     ...buildConfigs({
       name: 'react-query-devtools',
@@ -119,14 +124,9 @@ export default function rollup(options: RollupOptions): RollupOptions[] {
         'react-dom': 'ReactDOM',
         '@tanstack/react-query': 'ReactQuery',
         '@tanstack/match-sorter-utils': 'MatchSorterUtils',
-        'use-sync-external-store/shim/index.js': 'UseSyncExternalStore',
         superjson: 'SuperJson',
       },
-      bundleUMDGlobals: [
-        '@tanstack/match-sorter-utils',
-        'use-sync-external-store/shim/index.js',
-        'superjson',
-      ],
+      bundleUMDGlobals: ['@tanstack/match-sorter-utils', 'superjson'],
     }),
     ...buildConfigs({
       name: 'react-query-devtools-prod',
@@ -139,7 +139,6 @@ export default function rollup(options: RollupOptions): RollupOptions[] {
         'react-dom': 'ReactDOM',
         '@tanstack/react-query': 'ReactQuery',
         '@tanstack/match-sorter-utils': 'MatchSorterUtils',
-        'use-sync-external-store/shim/index.js': 'UseSyncExternalStore',
         superjson: 'SuperJson',
       },
       forceDevEnv: true,
@@ -159,19 +158,7 @@ export default function rollup(options: RollupOptions): RollupOptions[] {
       },
       bundleUMDGlobals: ['@tanstack/query-persist-client-core'],
     }),
-    ...buildConfigs({
-      name: 'solid-query',
-      packageDir: 'packages/solid-query',
-      jsName: 'SolidQuery',
-      outputFile: 'index',
-      entryFile: 'src/index.ts',
-      globals: {
-        'solid-js/store': 'SolidStore',
-        'solid-js': 'Solid',
-        '@tanstack/query-core': 'QueryCore',
-      },
-      bundleUMDGlobals: ['@tanstack/query-core'],
-    }),
+    createSolidQueryConfig(),
     ...buildConfigs({
       name: 'vue-query',
       packageDir: 'packages/vue-query',
@@ -276,15 +263,16 @@ function mjs({
   }
 
   return {
-    // ESM
+    // MJS
     external,
     input,
     output: forceBundle ? bundleOutput : normalOutput,
     plugins: [
-      babelPlugin,
+      babelPlugin('modern'),
       commonJS(),
       nodeResolve({ extensions: ['.ts', '.tsx', '.native.ts'] }),
       forceDevEnv ? forceEnvPlugin('development') : undefined,
+      preserveDirectives(),
     ],
   }
 }
@@ -320,10 +308,11 @@ function esm({
     input,
     output: forceBundle ? bundleOutput : normalOutput,
     plugins: [
-      babelPlugin,
+      babelPlugin('legacy'),
       commonJS(),
       nodeResolve({ extensions: ['.ts', '.tsx', '.native.ts'] }),
       forceDevEnv ? forceEnvPlugin('development') : undefined,
+      preserveDirectives(),
     ],
   }
 }
@@ -361,20 +350,11 @@ function cjs({
     input,
     output: forceBundle ? bundleOutput : normalOutput,
     plugins: [
-      babelPlugin,
+      babelPlugin('legacy'),
       commonJS(),
       nodeResolve({ extensions: ['.ts', '.tsx', '.native.ts'] }),
       forceDevEnv ? forceEnvPlugin('development') : undefined,
-      replace({
-        // TODO: figure out a better way to produce extensionless cjs imports
-        "require('./logger.js')": "require('./logger')",
-        "require('./reactBatchedUpdates.js')":
-          "require('./reactBatchedUpdates')",
-        "require('./useSyncExternalStore.js')":
-          "require('./useSyncExternalStore')",
-        preventAssignment: true,
-        delimiters: ['', ''],
-      }),
+      preserveDirectives(),
     ],
   }
 }
@@ -402,7 +382,7 @@ function umdDev({
     },
     plugins: [
       commonJS(),
-      babelPlugin,
+      babelPlugin('modern'),
       nodeResolve({ extensions: ['.ts', '.tsx', '.native.ts'] }),
       forceEnvPlugin('development'),
     ],
@@ -432,7 +412,7 @@ function umdProd({
     },
     plugins: [
       commonJS(),
-      babelPlugin,
+      babelPlugin('modern'),
       nodeResolve({ extensions: ['.ts', '.tsx', '.native.ts'] }),
       forceEnvPlugin('production'),
       terser({
@@ -464,4 +444,41 @@ function createBanner(libraryName: string) {
  *
  * @license MIT
  */`
+}
+
+function createSolidQueryConfig() {
+  const packageDir = 'packages/solid-query'
+  const solidRollupOptions = withSolid({
+    input: `${packageDir}/src/index.ts`,
+    targets: ['esm', 'cjs', 'umd'],
+    external: ['@tanstack/query-core'],
+  }) as RollupOptions
+
+  const outputs = !solidRollupOptions.output
+    ? []
+    : Array.isArray(solidRollupOptions.output)
+    ? solidRollupOptions.output
+    : [solidRollupOptions.output]
+
+  outputs.forEach((output) => {
+    const format = output.format
+    if (format === 'umd') {
+      output.globals = {
+        'solid-js/store': 'SolidStore',
+        'solid-js/web': 'SolidWeb',
+        'solid-js': 'Solid',
+        '@tanstack/query-core': 'QueryCore',
+      }
+    }
+    output.dir = `${packageDir}/build/${format}`
+  })
+
+  const plugins = solidRollupOptions.plugins as Plugin[]
+  // Prevent types generation since it doesn't resolve the directory correctly
+  // Instead build:types will generate those types anyway
+  const filtered = plugins.filter((plugin) => plugin.name !== 'ts')
+
+  solidRollupOptions.plugins = filtered
+
+  return solidRollupOptions
 }

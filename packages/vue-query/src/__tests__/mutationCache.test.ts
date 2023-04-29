@@ -2,11 +2,12 @@ import { ref } from 'vue-demi'
 import { MutationCache as MutationCacheOrigin } from '@tanstack/query-core'
 
 import { MutationCache } from '../mutationCache'
+import { vi } from 'vitest'
 
 describe('MutationCache', () => {
   beforeAll(() => {
-    jest.spyOn(MutationCacheOrigin.prototype, 'find')
-    jest.spyOn(MutationCacheOrigin.prototype, 'findAll')
+    vi.spyOn(MutationCacheOrigin.prototype, 'find')
+    vi.spyOn(MutationCacheOrigin.prototype, 'findAll')
   })
 
   describe('find', () => {
@@ -18,7 +19,6 @@ describe('MutationCache', () => {
       })
 
       expect(MutationCacheOrigin.prototype.find).toBeCalledWith({
-        exact: true,
         mutationKey: ['baz'],
       })
     })

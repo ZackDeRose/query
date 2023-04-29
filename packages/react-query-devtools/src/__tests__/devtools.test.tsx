@@ -1,9 +1,7 @@
 import * as React from 'react'
 import { fireEvent, screen, waitFor, act } from '@testing-library/react'
-import { ErrorBoundary } from 'react-error-boundary'
 import '@testing-library/jest-dom'
-import type { QueryClient } from '@tanstack/react-query'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, onlineManager } from '@tanstack/react-query'
 import { defaultPanelSize, sortFns } from '../utils'
 import {
   getByTextContent,
@@ -11,25 +9,27 @@ import {
   sleep,
   createQueryClient,
 } from './utils'
+import { vi } from 'vitest'
+import UserEvent from '@testing-library/user-event'
 
-// TODO: This should be removed with the types for react-error-boundary get updated.
-declare module 'react-error-boundary' {
-  interface ErrorBoundaryPropsWithFallback {
-    children: any
+class CustomError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CustomError'
   }
 }
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: jest.fn().mockImplementation((query: string) => ({
+  value: vi.fn().mockImplementation((query: string) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: jest.fn(), // deprecated
-    removeListener: jest.fn(), // deprecated
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
+    addListener: vi.fn(), // deprecated
+    removeListener: vi.fn(), // deprecated
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
   })),
 })
 
@@ -40,13 +40,16 @@ describe('ReactQueryDevtools', () => {
   })
   it('should be able to open and close devtools', async () => {
     const { queryClient } = createQueryClient()
-    const onCloseClick = jest.fn()
-    const onToggleClick = jest.fn()
+    const onCloseClick = vi.fn()
+    const onToggleClick = vi.fn()
 
     function Page() {
-      const { data = 'default' } = useQuery(['check'], async () => {
-        await sleep(10)
-        return 'test'
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => {
+          await sleep(10)
+          return 'test'
+        },
       })
 
       return (
@@ -118,9 +121,12 @@ describe('ReactQueryDevtools', () => {
     const { queryClient } = createQueryClient()
 
     function Page() {
-      const { data = 'default' } = useQuery(['check'], async () => {
-        await sleep(10)
-        return 'test'
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => {
+          await sleep(10)
+          return 'test'
+        },
       })
 
       return (
@@ -151,14 +157,14 @@ describe('ReactQueryDevtools', () => {
     const { queryClient, queryCache } = createQueryClient()
 
     function Page() {
-      const { data = 'default' } = useQuery(
-        ['check'],
-        async () => {
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => {
           await sleep(100)
           return 'test'
         },
-        { staleTime: 300 },
-      )
+        staleTime: 300,
+      })
 
       return (
         <div>
@@ -193,7 +199,7 @@ describe('ReactQueryDevtools', () => {
       screen.getByRole('button', { name: /open react query devtools/i }),
     )
 
-    const currentQuery = queryCache.find(['check'])
+    const currentQuery = queryCache.find({ queryKey: ['check'] })
 
     // When the query is fetching then expect number of
     // fetching queries to be 1
@@ -243,9 +249,12 @@ describe('ReactQueryDevtools', () => {
     const { queryClient, queryCache } = createQueryClient()
 
     function Page() {
-      const { data = 'default' } = useQuery(['check'], async () => {
-        await sleep(10)
-        return 'test'
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => {
+          await sleep(10)
+          return 'test'
+        },
       })
 
       return (
@@ -261,7 +270,7 @@ describe('ReactQueryDevtools', () => {
       screen.getByRole('button', { name: /open react query devtools/i }),
     )
 
-    const currentQuery = queryCache.find(['check'])
+    const currentQuery = queryCache.find({ queryKey: ['check'] })
 
     await screen.findByText(getByTextContent(`1${currentQuery?.queryHash}`))
 
@@ -278,19 +287,28 @@ describe('ReactQueryDevtools', () => {
     const { queryClient, queryCache } = createQueryClient()
 
     function Page() {
-      const fooResult = useQuery(['foo'], async () => {
-        await sleep(10)
-        return 'foo-result'
+      const fooResult = useQuery({
+        queryKey: ['foo'],
+        queryFn: async () => {
+          await sleep(10)
+          return 'foo-result'
+        },
       })
 
-      const barResult = useQuery(['bar'], async () => {
-        await sleep(10)
-        return 'bar-result'
+      const barResult = useQuery({
+        queryKey: ['bar'],
+        queryFn: async () => {
+          await sleep(10)
+          return 'bar-result'
+        },
       })
 
-      const bazResult = useQuery(['baz'], async () => {
-        await sleep(10)
-        return 'baz-result'
+      const bazResult = useQuery({
+        queryKey: ['baz'],
+        queryFn: async () => {
+          await sleep(10)
+          return 'baz-result'
+        },
       })
 
       return (
@@ -308,9 +326,12 @@ describe('ReactQueryDevtools', () => {
       screen.getByRole('button', { name: /open react query devtools/i }),
     )
 
-    const fooQueryHash = queryCache.find(['foo'])?.queryHash ?? 'invalid hash'
-    const barQueryHash = queryCache.find(['bar'])?.queryHash ?? 'invalid hash'
-    const bazQueryHash = queryCache.find(['baz'])?.queryHash ?? 'invalid hash'
+    const fooQueryHash =
+      queryCache.find({ queryKey: ['foo'] })?.queryHash ?? 'invalid hash'
+    const barQueryHash =
+      queryCache.find({ queryKey: ['bar'] })?.queryHash ?? 'invalid hash'
+    const bazQueryHash =
+      queryCache.find({ queryKey: ['baz'] })?.queryHash ?? 'invalid hash'
 
     await screen.findByText(fooQueryHash)
     screen.getByText(barQueryHash)
@@ -333,16 +354,14 @@ describe('ReactQueryDevtools', () => {
 
     function Page() {
       const [enabled, setEnabled] = React.useState(false)
-      const { data } = useQuery(
-        ['key'],
-        async () => {
+      const { data } = useQuery({
+        queryKey: ['key'],
+        queryFn: async () => {
           await sleep(10)
           return 'test'
         },
-        {
-          enabled,
-        },
-      )
+        enabled,
+      })
 
       return (
         <div>
@@ -367,7 +386,9 @@ describe('ReactQueryDevtools', () => {
     const { queryClient } = createQueryClient()
 
     function Page() {
-      const { data } = useQuery(['key'], () => Promise.resolve('test'), {
+      const { data } = useQuery({
+        queryKey: ['key'],
+        queryFn: () => Promise.resolve('test'),
         enabled: false,
       })
 
@@ -405,9 +426,12 @@ describe('ReactQueryDevtools', () => {
     let count = 0
 
     function App() {
-      const { data, fetchStatus } = useQuery(['key'], () => {
-        count++
-        return Promise.resolve('test')
+      const { data, fetchStatus } = useQuery({
+        queryKey: ['key'],
+        queryFn: () => {
+          count++
+          return Promise.resolve('test')
+        },
       })
 
       return (
@@ -454,34 +478,62 @@ describe('ReactQueryDevtools', () => {
     expect(count).toBe(2)
   })
 
+  it('should inform onlineManager when offline mode is simulated', () => {
+    const { queryClient } = createQueryClient()
+    const online: Array<boolean> = []
+
+    const unsubscribe = onlineManager.subscribe(() => {
+      online.push(onlineManager.isOnline())
+    })
+
+    renderWithClient(queryClient, <div />, {
+      initialIsOpen: true,
+    })
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /mock offline behavior/i }),
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /restore offline mock/i }),
+    )
+
+    expect(online).toStrictEqual([false, true])
+
+    unsubscribe()
+  })
+
   it('should sort the queries according to the sorting filter', async () => {
     const { queryClient, queryCache } = createQueryClient()
 
     function Page() {
-      const query1Result = useQuery(['query-1'], async () => {
-        await sleep(20)
-        return 'query-1-result'
+      const query1Result = useQuery({
+        queryKey: ['query-1'],
+        queryFn: async () => {
+          await sleep(20)
+          return 'query-1-result'
+        },
       })
 
-      const query3Result = useQuery(
-        ['query-3'],
-        async () => {
+      const query3Result = useQuery({
+        queryKey: ['query-3'],
+        queryFn: async () => {
           await sleep(10)
           return 'query-3-result'
         },
-        { staleTime: Infinity, enabled: typeof query1Result.data === 'string' },
-      )
+        staleTime: Infinity,
+        enabled: typeof query1Result.data === 'string',
+      })
 
-      const query2Result = useQuery(
-        ['query-2'],
-        async () => {
+      const query2Result = useQuery({
+        queryKey: ['query-2'],
+        queryFn: async () => {
           await sleep(10)
           return 'query-2-result'
         },
-        {
-          enabled: typeof query3Result.data === 'string',
-        },
-      )
+
+        enabled: typeof query3Result.data === 'string',
+      })
 
       return (
         <div>
@@ -498,9 +550,12 @@ describe('ReactQueryDevtools', () => {
       screen.getByRole('button', { name: /open react query devtools/i }),
     )
 
-    const query1Hash = queryCache.find(['query-1'])?.queryHash ?? 'invalid hash'
-    const query2Hash = queryCache.find(['query-2'])?.queryHash ?? 'invalid hash'
-    const query3Hash = queryCache.find(['query-3'])?.queryHash ?? 'invalid hash'
+    const query1Hash =
+      queryCache.find({ queryKey: ['query-1'] })?.queryHash ?? 'invalid hash'
+    const query2Hash =
+      queryCache.find({ queryKey: ['query-2'] })?.queryHash ?? 'invalid hash'
+    const query3Hash =
+      queryCache.find({ queryKey: ['query-3'] })?.queryHash ?? 'invalid hash'
 
     const sortSelect = screen.getByLabelText(/sort queries/i)
     let queries = []
@@ -563,9 +618,12 @@ describe('ReactQueryDevtools', () => {
     const { queryClient } = createQueryClient()
 
     function Page() {
-      const { data = 'default' } = useQuery(['check'], async () => {
-        await sleep(10)
-        return 'test'
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => {
+          await sleep(10)
+          return 'test'
+        },
       })
 
       return (
@@ -603,9 +661,12 @@ describe('ReactQueryDevtools', () => {
     const { queryClient } = createQueryClient()
 
     function Page() {
-      const { data = 'default' } = useQuery(['check'], async () => {
-        await sleep(10)
-        return 'test'
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => {
+          await sleep(10)
+          return 'test'
+        },
       })
 
       return (
@@ -632,9 +693,12 @@ describe('ReactQueryDevtools', () => {
     const { queryClient } = createQueryClient()
 
     function Page() {
-      const { data = 'default' } = useQuery(['check'], async () => {
-        await sleep(10)
-        return 'test'
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => {
+          await sleep(10)
+          return 'test'
+        },
       })
 
       return (
@@ -651,6 +715,52 @@ describe('ReactQueryDevtools', () => {
     const filterInput: HTMLInputElement =
       screen.getByLabelText(/Filter by queryhash/i)
     expect(filterInput.value).toEqual('posts')
+  })
+
+  it('should not show queries after clear', async () => {
+    const { queryClient, queryCache } = createQueryClient()
+
+    function Page() {
+      const query1Result = useQuery({
+        queryKey: ['query-1'],
+        queryFn: async () => {
+          return 'query-1-result'
+        },
+      })
+      const query2Result = useQuery({
+        queryKey: ['query-2'],
+        queryFn: async () => {
+          return 'query-2-result'
+        },
+      })
+      const query3Result = useQuery({
+        queryKey: ['query-3'],
+        queryFn: async () => {
+          return 'query-3-result'
+        },
+      })
+
+      return (
+        <div>
+          <h1>
+            {query1Result.data} {query2Result.data} {query3Result.data}{' '}
+          </h1>
+        </div>
+      )
+    }
+
+    renderWithClient(queryClient, <Page />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /open react query devtools/i }),
+    )
+
+    expect(queryCache.getAll()).toHaveLength(3)
+
+    const clearButton = screen.getByLabelText(/clear/i)
+    fireEvent.click(clearButton)
+
+    expect(queryCache.getAll()).toHaveLength(0)
   })
 
   it('style should have a nonce', async () => {
@@ -670,107 +780,14 @@ describe('ReactQueryDevtools', () => {
     await screen.findByRole('button', { name: /react query devtools/i })
   })
 
-  describe('with custom context', () => {
-    it('should render without error when the custom context aligns', async () => {
-      const context = React.createContext<QueryClient | undefined>(undefined)
-      const { queryClient } = createQueryClient()
-
-      function Page() {
-        const { data = 'default' } = useQuery(['check'], async () => 'test', {
-          context,
-        })
-
-        return (
-          <div>
-            <h1>{data}</h1>
-          </div>
-        )
-      }
-
-      renderWithClient(queryClient, <Page />, {
-        initialIsOpen: false,
-        context,
-      })
-
-      await screen.findByRole('button', { name: /open react query devtools/i })
-    })
-
-    it('should render with error when the custom context is not passed to useQuery', async () => {
-      const consoleErrorMock = jest.spyOn(console, 'error')
-      consoleErrorMock.mockImplementation(() => undefined)
-
-      const context = React.createContext<QueryClient | undefined>(undefined)
-      const { queryClient } = createQueryClient()
-
-      function Page() {
-        const { data = 'default' } = useQuery(['check'], async () => 'test', {
-          useErrorBoundary: true,
-        })
-
-        return (
-          <div>
-            <h1>{data}</h1>
-          </div>
-        )
-      }
-
-      const rendered = renderWithClient(
-        queryClient,
-        <ErrorBoundary fallbackRender={() => <div>error boundary</div>}>
-          <Page />
-        </ErrorBoundary>,
-        {
-          initialIsOpen: false,
-          context,
-        },
-      )
-
-      await waitFor(() => rendered.getByText('error boundary'))
-
-      consoleErrorMock.mockRestore()
-    })
-
-    it('should render with error when the custom context is not passed to ReactQueryDevtools', async () => {
-      const consoleErrorMock = jest.spyOn(console, 'error')
-      consoleErrorMock.mockImplementation(() => undefined)
-
-      const context = React.createContext<QueryClient | undefined>(undefined)
-      const { queryClient } = createQueryClient()
-
-      function Page() {
-        const { data = 'default' } = useQuery(['check'], async () => 'test', {
-          useErrorBoundary: true,
-          context,
-        })
-
-        return (
-          <div>
-            <h1>{data}</h1>
-          </div>
-        )
-      }
-
-      const rendered = renderWithClient(
-        queryClient,
-        <ErrorBoundary fallbackRender={() => <div>error boundary</div>}>
-          <Page />
-        </ErrorBoundary>,
-        {
-          initialIsOpen: false,
-        },
-      )
-
-      await waitFor(() => rendered.getByText('error boundary'))
-
-      consoleErrorMock.mockRestore()
-    })
-  })
-
   it('should render a menu to select panel position', async () => {
     const { queryClient } = createQueryClient()
 
     function Page() {
-      const { data = 'default' } = useQuery(['check'], async () => 'test')
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => 'test',
+      })
 
       return (
         <div>
@@ -783,9 +800,9 @@ describe('ReactQueryDevtools', () => {
       initialIsOpen: true,
     })
 
-    const positionSelect = (await screen.findByLabelText(
+    const positionSelect: HTMLSelectElement = await screen.findByLabelText(
       'Panel position',
-    )) as HTMLSelectElement
+    )
 
     expect(positionSelect.value).toBe('bottom')
   })
@@ -794,7 +811,10 @@ describe('ReactQueryDevtools', () => {
     const { queryClient } = createQueryClient()
 
     function Page() {
-      const { data = 'default' } = useQuery(['check'], async () => 'test')
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => 'test',
+      })
 
       return (
         <div>
@@ -808,9 +828,9 @@ describe('ReactQueryDevtools', () => {
       panelPosition: 'left',
     })
 
-    const positionSelect = (await screen.findByLabelText(
+    const positionSelect: HTMLSelectElement = await screen.findByLabelText(
       'Panel position',
-    )) as HTMLSelectElement
+    )
 
     expect(positionSelect.value).toBe('left')
 
@@ -827,7 +847,10 @@ describe('ReactQueryDevtools', () => {
     const { queryClient } = createQueryClient()
 
     function Page() {
-      const { data = 'default' } = useQuery(['check'], async () => 'test')
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => 'test',
+      })
 
       return (
         <div>
@@ -840,9 +863,9 @@ describe('ReactQueryDevtools', () => {
       initialIsOpen: true,
     })
 
-    const positionSelect = (await screen.findByLabelText(
+    const positionSelect: HTMLSelectElement = await screen.findByLabelText(
       'Panel position',
-    )) as HTMLSelectElement
+    )
 
     expect(positionSelect.value).toBe('bottom')
 
@@ -869,7 +892,10 @@ describe('ReactQueryDevtools', () => {
     const { queryClient } = createQueryClient()
 
     function Page() {
-      const { data = 'default' } = useQuery(['check'], async () => 'test')
+      const { data = 'default' } = useQuery({
+        queryKey: ['check'],
+        queryFn: async () => 'test',
+      })
 
       return (
         <div>
@@ -914,5 +940,197 @@ describe('ReactQueryDevtools', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^close$/i }))
     expect(parentElement).toHaveStyle(parentPaddings)
+  })
+
+  it('should simulate loading state', async () => {
+    const { queryClient } = createQueryClient()
+    let count = 0
+    function App() {
+      const { data, fetchStatus } = useQuery({
+        queryKey: ['key'],
+        queryFn: () => {
+          count++
+          return Promise.resolve('test')
+        },
+      })
+
+      return (
+        <div>
+          <h1>
+            {data ?? 'No data'}, {fetchStatus}
+          </h1>
+        </div>
+      )
+    }
+
+    renderWithClient(queryClient, <App />, {
+      initialIsOpen: true,
+    })
+
+    await screen.findByRole('heading', { name: /test/i })
+
+    const loadingButton = await screen.findByRole('button', {
+      name: 'Trigger loading',
+    })
+    fireEvent.click(loadingButton)
+
+    await waitFor(() => {
+      expect(screen.getByText('Restore loading')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('No data, fetching')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /restore loading/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('test, idle')).toBeInTheDocument()
+    })
+
+    expect(count).toBe(2)
+  })
+
+  it('should simulate error state', async () => {
+    const { queryClient } = createQueryClient()
+    function App() {
+      const { status, error } = useQuery({
+        queryKey: ['key'],
+        queryFn: () => {
+          return Promise.resolve('test')
+        },
+      })
+
+      return (
+        <div>
+          <h1>
+            {!!error ? 'Some error' : 'No error'}, {status}
+          </h1>
+        </div>
+      )
+    }
+
+    renderWithClient(queryClient, <App />, {
+      initialIsOpen: true,
+    })
+
+    const errorButton = await screen.findByRole('button', {
+      name: 'Trigger error',
+    })
+    fireEvent.click(errorButton)
+
+    await waitFor(() => {
+      expect(screen.getByText('Restore error')).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Some error, error')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Restore error/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('No error, success')).toBeInTheDocument()
+    })
+  })
+
+  it('should can simulate a specific error', async () => {
+    const { queryClient } = createQueryClient()
+
+    function App() {
+      const { status, error } = useQuery({
+        queryKey: ['key'],
+        queryFn: () => {
+          return Promise.resolve('test')
+        },
+      })
+
+      return (
+        <div data-testid="test">
+          <h1>
+            {error instanceof CustomError
+              ? error.message.toString()
+              : 'No error'}
+            , {status}
+          </h1>
+        </div>
+      )
+    }
+
+    renderWithClient(queryClient, <App />, {
+      initialIsOpen: true,
+      errorTypes: [
+        {
+          name: 'error1',
+          initializer: () => new CustomError('error1'),
+        },
+      ],
+    })
+
+    const errorOption = await screen.findByLabelText('Trigger error:')
+
+    UserEvent.selectOptions(errorOption, 'error1')
+
+    await waitFor(() => {
+      expect(screen.getByText('error1, error')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Restore error/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('No error, success')).toBeInTheDocument()
+    })
+  })
+
+  it('should not refetch when already restoring a query', async () => {
+    const { queryClient } = createQueryClient()
+
+    let count = 0
+    let resolvePromise: (value: unknown) => void = () => undefined
+
+    function App() {
+      const { data } = useQuery(['key'], () => {
+        count++
+
+        // Resolve the promise immediately when
+        // the query is fetched for the first time
+        if (count === 1) {
+          return Promise.resolve('test')
+        }
+
+        return new Promise((resolve) => {
+          // Do not resolve immediately and store the
+          // resolve function to resolve the promise later
+          resolvePromise = resolve
+        })
+      })
+
+      return (
+        <div>
+          <h1>{typeof data === 'string' ? data : 'No data'}</h1>
+        </div>
+      )
+    }
+
+    renderWithClient(queryClient, <App />, {
+      initialIsOpen: true,
+    })
+
+    const loadingButton = await screen.findByRole('button', {
+      name: 'Trigger loading',
+    })
+    fireEvent.click(loadingButton)
+
+    await waitFor(() => {
+      expect(screen.getByText('Restore loading')).toBeInTheDocument()
+    })
+
+    // Click the restore loading button twice and only resolve query promise
+    // after the second click.
+    fireEvent.click(screen.getByRole('button', { name: /restore loading/i }))
+    fireEvent.click(screen.getByRole('button', { name: /restore loading/i }))
+    resolvePromise('test')
+
+    expect(count).toBe(2)
   })
 })

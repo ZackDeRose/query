@@ -1,0 +1,79 @@
+{
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "@nrwl/nx-cloud",
+      "options": {
+        "cacheableOperations": [
+          "test:lib",
+          "test:eslint",
+          "test:types",
+          "test:build",
+          "build:types",
+          "build",
+          "rollup"
+        ],
+        "accessToken": "ZDdkNDA4MGEtYjNmYi00MWI4LWE1N2QtYTdlNmYxMGJlZWM2fHJlYWQ="
+      }
+    }
+  },
+  "defaultBase": "main",
+  "pluginsConfig": {
+    "@nrwl/js": {
+      "analyzeSourceFiles": false
+    }
+  },
+  "namedInputs": {
+    "globalBuildAffectingConfig": [
+      "{workspaceRoot}/babel.config.js",
+      "{workspaceRoot}/rollup.config.js",
+      "{workspaceRoot}/rollup.config.ts",
+      "{workspaceRoot}/tsconfig.json",
+      "{workspaceRoot}/tsconfig.base.json",
+      "{workspaceRoot}/package.json"
+    ],
+    "globalNonBuildAffectingConfig": ["{workspaceRoot}/.eslintrc"],
+    "default": [
+      "{projectRoot}/**/*",
+      "globalBuildAffectingConfig",
+      "globalNonBuildAffectingConfig",
+      "!{projectRoot}/**/*.md",
+      "!{projectRoot}/**/build/**/*"
+    ],
+    "public": [
+      "default",
+      "!{workspaceRoot}/.eslintrc",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/.eslintrc*",
+      "!{projectRoot}/tsconfig.eslint.json"
+    ]
+  },
+  "targetDefaults": {
+    "test:lib": {
+      "outputs": ["{projectRoot}/coverage"],
+      "inputs": ["default", "^public"]
+    },
+    "test:eslint": {
+      "inputs": ["default", "^public"]
+    },
+    "test:types": {
+      "outputs": [
+        "{projectRoot}/build/**/*.d.ts",
+        "{projectRoot}/build/.tsbuildinfo"
+      ],
+      "inputs": ["default", "^public"],
+      "dependsOn": ["^test:types"]
+    },
+    "build:types": {
+      "outputs": [
+        "{projectRoot}/build/**/*.d.ts",
+        "{projectRoot}/build/.tsbuildinfo"
+      ],
+      "inputs": ["default", "^public"],
+      "dependsOn": ["^build:types"]
+    },
+    "test:build": {
+      "dependsOn": ["build"],
+      "inputs": ["^public"]
+    }
+  }
+}

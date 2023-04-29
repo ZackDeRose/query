@@ -2,23 +2,31 @@ import type {
   QueryKey,
   QueryFunction,
   QueryClient,
+  QueriesPlaceholderDataFunction,
   QueryObserverResult,
+  DefaultError,
 } from '@tanstack/query-core'
 
 import { notifyManager, QueriesObserver } from '@tanstack/query-core'
-import { readable, type Readable } from 'svelte/store'
+import { derived, get, readable, writable, type Readable } from 'svelte/store'
 
-import type { CreateQueryOptions } from './types'
+import type { CreateQueryOptions, WritableOrVal } from './types'
 import { useQueryClient } from './useQueryClient'
+import { isWritable } from './utils'
 
 // This defines the `CreateQueryOptions` that are accepted in `QueriesOptions` & `GetOptions`.
-// - `context` is omitted as it is passed as a root-level option to `createQueries` instead.
+// `placeholderData` function does not have a parameter
 type CreateQueryOptionsForCreateQueries<
   TQueryFnData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TData = TQueryFnData,
   TQueryKey extends QueryKey = QueryKey,
-> = Omit<CreateQueryOptions<TQueryFnData, TError, TData, TQueryKey>, 'context'>
+> = Omit<
+  CreateQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  'placeholderData'
+> & {
+  placeholderData?: TQueryFnData | QueriesPlaceholderDataFunction<TQueryFnData>
+}
 
 // Avoid TS depth-limit error in case of large array literal
 type MAXIMUM_DEPTH = 20
@@ -47,16 +55,11 @@ type GetOptions<T> =
         queryFn?: QueryFunction<infer TQueryFnData, infer TQueryKey>
         select: (data: any) => infer TData
       }
-    ? CreateQueryOptionsForCreateQueries<
-        TQueryFnData,
-        unknown,
-        TData,
-        TQueryKey
-      >
+    ? CreateQueryOptionsForCreateQueries<TQueryFnData, Error, TData, TQueryKey>
     : T extends { queryFn?: QueryFunction<infer TQueryFnData, infer TQueryKey> }
     ? CreateQueryOptionsForCreateQueries<
         TQueryFnData,
-        unknown,
+        Error,
         TQueryFnData,
         TQueryKey
       >
@@ -140,40 +143,47 @@ export type QueriesResults<
       any
     >[]
   ? // Dynamic-size (homogenous) CreateQueryOptions array: map directly to array of results
-    QueryObserverResult<unknown extends TData ? TQueryFnData : TData, TError>[]
+    QueryObserverResult<
+      unknown extends TData ? TQueryFnData : TData,
+      unknown extends TError ? DefaultError : TError
+    >[]
   : // Fallback
     QueryObserverResult[]
 
 export type CreateQueriesResult<T extends any[]> = Readable<QueriesResults<T>>
 
 export function createQueries<T extends any[]>(
-  queries: readonly [...QueriesOptions<T>],
+  {
+    queries,
+  }: {
+    queries: WritableOrVal<[...QueriesOptions<T>]>
+  },
+  queryClient?: QueryClient,
 ): CreateQueriesResult<T> {
-  const client: QueryClient = useQueryClient()
+  const client = useQueryClient(queryClient)
   // const isRestoring = useIsRestoring()
 
-  function getDefaultQuery(newQueries: readonly [...QueriesOptions<T>]) {
-    return newQueries.map((options) => {
+  const queriesStore = isWritable(queries) ? queries : writable(queries)
+
+  const defaultedQueriesStore = derived(queriesStore, ($queries) => {
+    return $queries.map((options) => {
       const defaultedOptions = client.defaultQueryOptions(options)
       // Make sure the results are already in fetching state before subscribing or updating options
       defaultedOptions._optimisticResults = 'optimistic'
 
       return defaultedOptions
     })
-  }
+  })
+  const observer = new QueriesObserver(client, get(defaultedQueriesStore))
 
-  const defaultedQueries = getDefaultQuery(queries)
-  let observer = new QueriesObserver(client, defaultedQueries)
-
-  readable(observer).subscribe(($observer) => {
-    observer = $observer
+  defaultedQueriesStore.subscribe(($defaultedQueries) => {
     // Do not notify on updates because of changes in the options because
     // these changes should already be reflected in the optimistic result.
-    observer.setQueries(defaultedQueries, { listeners: false })
+    observer.setQueries($defaultedQueries, { listeners: false })
   })
 
   const { subscribe } = readable(
-    observer.getOptimisticResult(defaultedQueries) as any,
+    observer.getOptimisticResult(get(defaultedQueriesStore)) as any,
     (set) => {
       return observer.subscribe(notifyManager.batchCalls(set))
     },

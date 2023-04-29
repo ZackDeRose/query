@@ -1,6 +1,6 @@
 {
   "name": "@tanstack/query-core",
-  "version": "4.26.1",
+  "version": "5.0.0-alpha.23",
   "description": "The framework agnostic core that powers TanStack Query",
   "author": "tannerlinsley",
   "license": "MIT",
@@ -31,7 +31,7 @@
     "clean": "rimraf ./build",
     "test:eslint": "eslint --ext .ts,.tsx ./src",
     "test:types": "tsc",
-    "test:lib": "jest --config ./jest.config.ts",
+    "test:lib": "vitest run --coverage",
     "test:lib:dev": "pnpm run test:lib --watch",
     "build:types": "tsc --build"
   }

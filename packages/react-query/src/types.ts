@@ -1,6 +1,5 @@
 /* istanbul ignore file */
 
-import type * as React from 'react'
 import type {
   InfiniteQueryObserverOptions,
   InfiniteQueryObserverResult,
@@ -11,92 +10,88 @@ import type {
   MutationObserverOptions,
   MutateFunction,
   DefinedQueryObserverResult,
+  WithRequired,
+  DefaultError,
 } from '@tanstack/query-core'
-import type { QueryClient } from '@tanstack/query-core'
-
-export interface ContextOptions {
-  /**
-   * Use this to pass your React Query context. Otherwise, `defaultContext` will be used.
-   */
-  context?: React.Context<QueryClient | undefined>
-}
 
 export interface UseBaseQueryOptions<
   TQueryFnData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TData = TQueryFnData,
   TQueryData = TQueryFnData,
   TQueryKey extends QueryKey = QueryKey,
-> extends ContextOptions,
-    QueryObserverOptions<TQueryFnData, TError, TData, TQueryData, TQueryKey> {}
+> extends WithRequired<
+    QueryObserverOptions<TQueryFnData, TError, TData, TQueryData, TQueryKey>,
+    'queryKey'
+  > {}
 
 export interface UseQueryOptions<
   TQueryFnData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TData = TQueryFnData,
   TQueryKey extends QueryKey = QueryKey,
-> extends UseBaseQueryOptions<
-    TQueryFnData,
-    TError,
-    TData,
-    TQueryFnData,
-    TQueryKey
+> extends WithRequired<
+    UseBaseQueryOptions<TQueryFnData, TError, TData, TQueryFnData, TQueryKey>,
+    'queryKey'
   > {}
 
 export interface UseInfiniteQueryOptions<
   TQueryFnData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TData = TQueryFnData,
   TQueryData = TQueryFnData,
   TQueryKey extends QueryKey = QueryKey,
-> extends ContextOptions,
+  TPageParam = unknown,
+> extends WithRequired<
     InfiniteQueryObserverOptions<
       TQueryFnData,
       TError,
       TData,
       TQueryData,
-      TQueryKey
-    > {}
+      TQueryKey,
+      TPageParam
+    >,
+    'queryKey'
+  > {}
 
 export type UseBaseQueryResult<
   TData = unknown,
-  TError = unknown,
+  TError = DefaultError,
 > = QueryObserverResult<TData, TError>
 
 export type UseQueryResult<
   TData = unknown,
-  TError = unknown,
+  TError = DefaultError,
 > = UseBaseQueryResult<TData, TError>
 
 export type DefinedUseBaseQueryResult<
   TData = unknown,
-  TError = unknown,
+  TError = DefaultError,
 > = DefinedQueryObserverResult<TData, TError>
 
 export type DefinedUseQueryResult<
   TData = unknown,
-  TError = unknown,
+  TError = DefaultError,
 > = DefinedUseBaseQueryResult<TData, TError>
 
 export type UseInfiniteQueryResult<
   TData = unknown,
-  TError = unknown,
+  TError = DefaultError,
 > = InfiniteQueryObserverResult<TData, TError>
 
 export interface UseMutationOptions<
   TData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TVariables = void,
   TContext = unknown,
-> extends ContextOptions,
-    Omit<
-      MutationObserverOptions<TData, TError, TVariables, TContext>,
-      '_defaulted' | 'variables'
-    > {}
+> extends Omit<
+    MutationObserverOptions<TData, TError, TVariables, TContext>,
+    '_defaulted' | 'variables'
+  > {}
 
 export type UseMutateFunction<
   TData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TVariables = void,
   TContext = unknown,
 > = (
@@ -105,14 +100,14 @@ export type UseMutateFunction<
 
 export type UseMutateAsyncFunction<
   TData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TVariables = void,
   TContext = unknown,
 > = MutateFunction<TData, TError, TVariables, TContext>
 
 export type UseBaseMutationResult<
   TData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TVariables = unknown,
   TContext = unknown,
 > = Override<
@@ -122,7 +117,7 @@ export type UseBaseMutationResult<
 
 export type UseMutationResult<
   TData = unknown,
-  TError = unknown,
+  TError = DefaultError,
   TVariables = unknown,
   TContext = unknown,
 > = UseBaseMutationResult<TData, TError, TVariables, TContext>

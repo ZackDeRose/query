@@ -1,23 +1,12 @@
 import { fireEvent, screen, waitFor } from 'solid-testing-library'
-import {
-  createMutation,
-  QueryClient,
-  QueryClientProvider,
-  useIsMutating,
-} from '..'
+import { createMutation, QueryClientProvider, useIsMutating } from '..'
 import { createQueryClient, sleep } from './utils'
 
-import {
-  createContext,
-  createEffect,
-  createRenderEffect,
-  createSignal,
-  ErrorBoundary,
-  Show,
-} from 'solid-js'
+import { createEffect, createRenderEffect, createSignal, Show } from 'solid-js'
 import { render } from 'solid-testing-library'
 import * as MutationCacheModule from '../../../query-core/src/mutationCache'
 import { setActTimeout } from './utils'
+import { vi } from 'vitest'
 
 describe('useIsMutating', () => {
   it('should return the number of fetching mutations', async () => {
@@ -33,14 +22,20 @@ describe('useIsMutating', () => {
     }
 
     function Mutations() {
-      const { mutate: mutate1 } = createMutation(['mutation1'], async () => {
-        await sleep(150)
-        return 'data'
-      })
-      const { mutate: mutate2 } = createMutation(['mutation2'], async () => {
-        await sleep(50)
-        return 'data'
-      })
+      const { mutate: mutate1 } = createMutation(() => ({
+        mutationKey: ['mutation1'],
+        mutationFn: async () => {
+          await sleep(150)
+          return 'data'
+        },
+      }))
+      const { mutate: mutate2 } = createMutation(() => ({
+        mutationKey: ['mutation2'],
+        mutationFn: async () => {
+          await sleep(50)
+          return 'data'
+        },
+      }))
 
       createEffect(() => {
         mutate1()
@@ -74,7 +69,7 @@ describe('useIsMutating', () => {
     const queryClient = createQueryClient()
 
     function IsMutating() {
-      const isMutating = useIsMutating(['mutation1'])
+      const isMutating = useIsMutating(() => ({ mutationKey: ['mutation1'] }))
       createRenderEffect(() => {
         isMutatings.push(isMutating())
       })
@@ -82,14 +77,20 @@ describe('useIsMutating', () => {
     }
 
     function Page() {
-      const { mutate: mutate1 } = createMutation(['mutation1'], async () => {
-        await sleep(100)
-        return 'data'
-      })
-      const { mutate: mutate2 } = createMutation(['mutation2'], async () => {
-        await sleep(100)
-        return 'data'
-      })
+      const { mutate: mutate1 } = createMutation(() => ({
+        mutationKey: ['mutation1'],
+        mutationFn: async () => {
+          await sleep(100)
+          return 'data'
+        },
+      }))
+      const { mutate: mutate2 } = createMutation(() => ({
+        mutationKey: ['mutation2'],
+        mutationFn: async () => {
+          await sleep(100)
+          return 'data'
+        },
+      }))
 
       createEffect(() => {
         mutate1()
@@ -113,10 +114,10 @@ describe('useIsMutating', () => {
     const queryClient = createQueryClient()
 
     function IsMutating() {
-      const isMutating = useIsMutating({
+      const isMutating = useIsMutating(() => ({
         predicate: (mutation) =>
           mutation.options.mutationKey?.[0] === 'mutation1',
-      })
+      }))
       createRenderEffect(() => {
         isMutatings.push(isMutating())
       })
@@ -124,14 +125,20 @@ describe('useIsMutating', () => {
     }
 
     function Page() {
-      const { mutate: mutate1 } = createMutation(['mutation1'], async () => {
-        await sleep(100)
-        return 'data'
-      })
-      const { mutate: mutate2 } = createMutation(['mutation2'], async () => {
-        await sleep(100)
-        return 'data'
-      })
+      const { mutate: mutate1 } = createMutation(() => ({
+        mutationKey: ['mutation1'],
+        mutationFn: async () => {
+          await sleep(100)
+          return 'data'
+        },
+      }))
+      const { mutate: mutate2 } = createMutation(() => ({
+        mutationKey: ['mutation2'],
+        mutationFn: async () => {
+          await sleep(100)
+          return 'data'
+        },
+      }))
 
       createEffect(() => {
         mutate1()
@@ -151,6 +158,33 @@ describe('useIsMutating', () => {
     await waitFor(() => expect(isMutatings).toEqual([0, 1, 0]))
   })
 
+  it('should use provided custom queryClient', async () => {
+    const queryClient = createQueryClient()
+    function Page() {
+      const isMutating = useIsMutating(undefined, () => queryClient)
+      const { mutate } = createMutation(
+        () => ({
+          mutationKey: ['mutation1'],
+          mutationFn: async () => {
+            await sleep(10)
+            return 'data'
+          },
+        }),
+        () => queryClient,
+      )
+      createEffect(() => {
+        mutate()
+      })
+      return (
+        <div>
+          <div>mutating: {isMutating}</div>
+        </div>
+      )
+    }
+    render(() => <Page></Page>)
+    await waitFor(() => screen.findByText('mutating: 1'))
+  })
+
   it('should not change state if unmounted', async () => {
     // We have to mock the MutationCache to not unsubscribe
     // the listener when the component is unmounted
@@ -161,7 +195,7 @@ describe('useIsMutating', () => {
       }
     }
 
-    const MutationCacheSpy = jest
+    const MutationCacheSpy = vi
       .spyOn(MutationCacheModule, 'MutationCache')
       .mockImplementation((fn) => {
         return new MutationCacheMock(fn)
@@ -176,10 +210,13 @@ describe('useIsMutating', () => {
 
     function Page() {
       const [mounted, setMounted] = createSignal(true)
-      const { mutate: mutate1 } = createMutation(['mutation1'], async () => {
-        await sleep(10)
-        return 'data'
-      })
+      const { mutate: mutate1 } = createMutation(() => ({
+        mutationKey: ['mutation1'],
+        mutationFn: async () => {
+          await sleep(10)
+          return 'data'
+        },
+      }))
 
       createEffect(() => {
         mutate1()
@@ -207,95 +244,5 @@ describe('useIsMutating', () => {
 
     await sleep(20)
     MutationCacheSpy.mockRestore()
-  })
-
-  describe('with custom context', () => {
-    it('should return the number of fetching mutations', async () => {
-      const context = createContext<QueryClient | undefined>(undefined)
-
-      const isMutatings: number[] = []
-      const queryClient = new QueryClient()
-
-      function IsMutating() {
-        const isMutating = useIsMutating(undefined, { context })
-
-        createRenderEffect(() => {
-          isMutatings.push(isMutating())
-        })
-
-        return null
-      }
-
-      function Page() {
-        const { mutate: mutate1 } = createMutation(
-          ['mutation1'],
-          async () => {
-            await sleep(150)
-            return 'data'
-          },
-          { context },
-        )
-        const { mutate: mutate2 } = createMutation(
-          ['mutation2'],
-          async () => {
-            await sleep(50)
-            return 'data'
-          },
-          { context },
-        )
-
-        createEffect(() => {
-          mutate1()
-          setActTimeout(() => {
-            mutate2()
-          }, 50)
-        })
-
-        return <IsMutating />
-      }
-
-      render(() => (
-        <QueryClientProvider client={queryClient} context={context}>
-          <Page />
-        </QueryClientProvider>
-      ))
-      await waitFor(() => expect(isMutatings).toEqual([0, 1, 2, 1, 0]))
-    })
-
-    it('should throw if the context is not passed to useIsMutating', async () => {
-      const context = createContext<QueryClient | undefined>(undefined)
-
-      const isMutatings: number[] = []
-      const queryClient = new QueryClient()
-
-      function IsMutating() {
-        const isMutating = useIsMutating(undefined)
-        isMutatings.push(isMutating())
-        return null
-      }
-
-      function Page() {
-        const { mutate } = createMutation(['mutation'], async () => 'data', {
-          useErrorBoundary: true,
-          context,
-        })
-
-        createEffect(() => {
-          mutate()
-        })
-
-        return <IsMutating />
-      }
-
-      render(() => (
-        <QueryClientProvider client={queryClient} context={context}>
-          <ErrorBoundary fallback={() => <div>error boundary</div>}>
-            <Page />
-          </ErrorBoundary>
-        </QueryClientProvider>
-      ))
-
-      await waitFor(() => screen.getByText('error boundary'))
-    })
   })
 })

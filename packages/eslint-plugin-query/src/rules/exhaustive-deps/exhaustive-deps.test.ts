@@ -39,6 +39,20 @@ ruleTester.run('exhaustive-deps', rule, {
       code: 'useQuery({ queryKey: ["entity", id], queryFn: () => api.entity.get(id) });',
     },
     {
+      name: 'should not pass api when is being used for calling a function',
+      code: `
+        import useApi from './useApi'
+
+        const useFoo = () => {
+          const api = useApi();
+          return useQuery({
+            queryKey: ['foo'],
+            queryFn: () => api.fetchFoo(),
+          })
+        }
+      `,
+    },
+    {
       name: 'should pass props.src',
       code: `
         function MyComponent(props) {
@@ -245,6 +259,61 @@ ruleTester.run('exhaustive-deps', rule, {
             queryKey: ['state', state],
             queryFn: () => Promise.resolve({ foo: state.foo, bar: state.bar })
         })
+      `,
+    },
+    {
+      name: 'should not fail if queryKey does not include an internal dependency',
+      code: normalizeIndent`
+        useQuery({
+          queryKey: ["api"],
+          queryFn: async () => {
+            const response = Promise.resolve([]);
+            const data = await response.json();
+            return data[0].name;
+          },
+        });
+      `,
+    },
+    {
+      name: 'should ignore constants defined out of scope (react component)',
+      code: `
+        const CONST_VAL = 1
+        function MyComponent() {
+          useQuery({
+            queryKey: ["foo"],
+            queryFn: () => CONST_VAL
+          });
+        }
+      `,
+    },
+    {
+      name: 'should ignore constants defined out of scope (react hook)',
+      code: `
+        const CONST_VAL = 1
+        function useHook() {
+          useQuery({
+            queryKey: ["foo"],
+            queryFn: () => CONST_VAL
+          });
+        }
+      `,
+    },
+    {
+      name: 'should ignore references of the queryClient',
+      code: `
+        const CONST_VAL = 1
+        function useHook() {
+          const queryClient = useQueryClient()
+          const kueryKlient = useQueryClient()
+          useQuery({
+            queryKey: ["foo"],
+            queryFn: () => {
+                doSomething(queryClient)
+                queryClient.invalidateQueries()
+                doSomethingSus(kueryKlient)
+            }
+          });
+        }
       `,
     },
   ],
