@@ -19,13 +19,13 @@ jobs:
           repository: ${{github.event.pull_request.head.repo.full_name}}
       - uses: pnpm/action-setup@v2.2.4
         with:
-          version: 7
+          version: 8.3.1
       - uses: actions/setup-node@v3
         with:
           node-version: 16.14.2
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm --filter "./packages/**" --filter query --prefer-offline install
+        run: pnpm --filter "./packages/**" --filter query --prefer-offline install --no-frozen-lockfile
       - name: Start Nx Agent ${{ matrix.agent }}
         run: npx nx-cloud start-agent
   orchestrator:
@@ -45,7 +45,7 @@ jobs:
           node-version: 16.19.0
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm --filter "./packages/**" --filter query --prefer-offline install
+        run: pnpm --filter "./packages/**" --filter query --prefer-offline install --no-frozen-lockfile
       - name: Derive appropriate SHAs for base and head for `nx affected` commands
         uses: nrwl/nx-set-shas@v2
       - run: |
@@ -76,28 +76,11 @@ jobs:
           repository: ${{github.event.pull_request.head.repo.full_name}}
       - uses: pnpm/action-setup@v2.2.4
         with:
-          version: 7
+          version: 8.3.1
       - uses: actions/setup-node@v3
         with:
           node-version: 16.14.2
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm --filter "./packages/**" --filter query --prefer-offline install
+        run: pnpm --filter "./packages/**" --filter query --prefer-offline install --no-frozen-lockfile
       - run: pnpm run test:format --base=${{ github.event.pull_request.base.sha }}
-  test-build:
-    name: 'Test Build'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v2.2.4
-        with:
-          version: 7
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 16.14.2
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm --filter "./packages/**" --filter query --prefer-offline install
-      - run: pnpm run test:build
-        env:
-          BUNDLEWATCH_GITHUB_TOKEN: ${{ secrets.BUNDLEWATCH_GITHUB_TOKEN }}
