@@ -25,7 +25,7 @@ jobs:
           node-version: 16.14.2
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm --filter "./packages/**" --filter query --prefer-offline install
+        run: pnpm --filter "./packages/**" --filter query --prefer-offline install --no-frozen-lockfile
       - name: Start Nx Agent ${{ matrix.agent }}
         run: npx nx-cloud start-agent
   orchestrator:
