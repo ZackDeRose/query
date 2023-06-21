@@ -75,5 +75,6 @@
       "dependsOn": ["build"],
       "inputs": ["^public"]
     }
-  }
+  },
+  "foo": "bar"
 }
