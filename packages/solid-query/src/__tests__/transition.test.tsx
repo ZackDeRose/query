@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from 'solid-testing-library'
+import { fireEvent, render, screen, waitFor } from '@solidjs/testing-library'
 
 import { createSignal, Show, startTransition, Suspense } from 'solid-js'
 import { createQuery, QueryCache, QueryClientProvider } from '..'
@@ -12,10 +12,13 @@ describe("useQuery's in Suspense mode with transitions", () => {
     const key = queryKey()
 
     function Suspended() {
-      const state = createQuery(key, async () => {
-        await sleep(10)
-        return true
-      })
+      const state = createQuery(() => ({
+        queryKey: key,
+        queryFn: async () => {
+          await sleep(10)
+          return true
+        },
+      }))
 
       return <Show when={state.data}>Message</Show>
     }

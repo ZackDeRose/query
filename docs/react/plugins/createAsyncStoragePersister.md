@@ -34,7 +34,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      cacheTime: 1000 * 60 * 60 * 24, // 24 hours
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours
     },
   },
 })
@@ -74,7 +74,7 @@ createAsyncStoragePersister(options: CreateAsyncStoragePersisterOptions)
 ```tsx
 interface CreateAsyncStoragePersisterOptions {
   /** The storage client used for setting an retrieving items from cache */
-  storage: AsyncStorage
+  storage: AsyncStorage | undefined | null
   /** The key to use when storing the cache to localStorage */
   key?: string
   /** To avoid localStorage spamming,

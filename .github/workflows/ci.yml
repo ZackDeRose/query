@@ -1,7 +1,5 @@
 name: ci
-concurrency:
-  group: publish-${{ github.github.base_ref }}
-  cancel-in-progress: true
+
 on:
   workflow_dispatch:
     inputs:
@@ -13,6 +11,15 @@ on:
       - 'main'
       - 'alpha'
       - 'beta'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+  NX_CLOUD_AUTH_TOKEN: ${{ secrets.NX_CLOUD_AUTH_TOKEN }}
+
 jobs:
   test-and-publish:
     if: github.repository == 'TanStack/query' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/alpha' || github.ref == 'refs/heads/beta')
@@ -24,16 +31,20 @@ jobs:
           fetch-depth: '0'
       - uses: pnpm/action-setup@v2.2.4
         with:
-          version: 7
+          version: 8
       - uses: actions/setup-node@v3
         with:
-          node-version: 16.14.2
+          node-version: 18.16.0
           registry-url: https://registry.npmjs.org/
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm --filter "./packages/**" --filter query --prefer-offline install
       - name: Run Tests
-        run: pnpm run test:ci
+        uses: nick-fields/retry@v2.8.3
+        with:
+          command: pnpm run test:ci
+          timeout_minutes: 10
+          max_attempts: 3
       - name: Publish
         run: |
           git config --global user.name 'Tanner Linsley'

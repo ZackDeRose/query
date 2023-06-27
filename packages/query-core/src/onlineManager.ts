@@ -5,27 +5,31 @@ type SetupFn = (
   setOnline: (online?: boolean) => void,
 ) => (() => void) | undefined
 
-export class OnlineManager extends Subscribable {
-  private online?: boolean
-  private cleanup?: () => void
+const onlineEvents = ['online', 'offline'] as const
 
-  private setup: SetupFn
+export class OnlineManager extends Subscribable {
+  #online?: boolean
+  #cleanup?: () => void
+
+  #setup: SetupFn
 
   constructor() {
     super()
-    this.setup = (onOnline) => {
+    this.#setup = (onOnline) => {
       // addEventListener does not exist in React Native, but window does
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (!isServer && window.addEventListener) {
         const listener = () => onOnline()
         // Listen to online
-        window.addEventListener('online', listener, false)
-        window.addEventListener('offline', listener, false)
+        onlineEvents.forEach((event) => {
+          window.addEventListener(event, listener, false)
+        })
 
         return () => {
           // Be sure to unsubscribe if a new handler is set
-          window.removeEventListener('online', listener)
-          window.removeEventListener('offline', listener)
+          onlineEvents.forEach((event) => {
+            window.removeEventListener(event, listener)
+          })
         }
       }
 
@@ -34,22 +38,22 @@ export class OnlineManager extends Subscribable {
   }
 
   protected onSubscribe(): void {
-    if (!this.cleanup) {
-      this.setEventListener(this.setup)
+    if (!this.#cleanup) {
+      this.setEventListener(this.#setup)
     }
   }
 
   protected onUnsubscribe() {
     if (!this.hasListeners()) {
-      this.cleanup?.()
-      this.cleanup = undefined
+      this.#cleanup?.()
+      this.#cleanup = undefined
     }
   }
 
   setEventListener(setup: SetupFn): void {
-    this.setup = setup
-    this.cleanup?.()
-    this.cleanup = setup((online?: boolean) => {
+    this.#setup = setup
+    this.#cleanup?.()
+    this.#cleanup = setup((online?: boolean) => {
       if (typeof online === 'boolean') {
         this.setOnline(online)
       } else {
@@ -59,7 +63,7 @@ export class OnlineManager extends Subscribable {
   }
 
   setOnline(online?: boolean): void {
-    this.online = online
+    this.#online = online
 
     if (online) {
       this.onOnline()
@@ -73,8 +77,8 @@ export class OnlineManager extends Subscribable {
   }
 
   isOnline(): boolean {
-    if (typeof this.online === 'boolean') {
-      return this.online
+    if (typeof this.#online === 'boolean') {
+      return this.#online
     }
 
     if (

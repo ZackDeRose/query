@@ -1,22 +1,14 @@
-import { svelte } from '@sveltejs/vite-plugin-svelte';
-import path from 'path';
-import type { UserConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { defineConfig } from 'vite'
 
-const config: UserConfig = {
+export default defineConfig({
   plugins: [svelte()],
-  resolve: {
-    alias: {
-      "@tanstack/query-core": path.resolve(__dirname, '..', 'query-core', 'src'),
-    }
-  },
   test: {
-    coverage: {
-      provider: 'istanbul'
-    },
+    name: 'svelte-query',
+    watch: false,
+    coverage: { provider: 'istanbul' },
     environment: 'jsdom',
     include: ['src/**/*.{test,spec}.{js,ts}'],
-    setupFiles: ['vitest.setup.ts']
-  }
-};
-
-export default config;
+    setupFiles: ['vitest.setup.ts'],
+  },
+})
