@@ -41,6 +41,8 @@ jobs:
           echo "HEAD: ${{ env.NX_HEAD }}"
       - name: Start CI Orchestrator
         run: npx nx-cloud start-ci-run
+      - name: Debug affected
+        command: npx nx print-affected
       - name: Run Tests
         uses: nick-fields/retry@v2.8.3
         with:

@@ -8,6 +8,8 @@ import type {
 } from '@tanstack/query-core'
 import type { MaybeRefDeep } from './types'
 
+console.log('foo')
+
 export class QueryCache extends QC {
   find<TQueryFnData = unknown, TError = DefaultError, TData = TQueryFnData>(
     filters: MaybeRefDeep<WithRequired<QueryFilters, 'queryKey'>>,
