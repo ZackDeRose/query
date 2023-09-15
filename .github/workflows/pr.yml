@@ -42,7 +42,7 @@ jobs:
       - name: Start CI Orchestrator
         run: npx nx-cloud start-ci-run
       - name: Debug affected
-        run: npx nx print-affected
+        run: npx nx show projects --affected
       - name: Run Tests
         uses: nick-fields/retry@v2.8.3
         with:
