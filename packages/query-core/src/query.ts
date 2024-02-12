@@ -644,3 +644,5 @@ function getDefaultState<
     fetchStatus: 'idle',
   }
 }
+
+console.log('foo')
