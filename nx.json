@@ -4,7 +4,6 @@
     "defaultBase": "main"
   },
   "defaultBase": "main",
-  "nxCloudAccessToken": "ZDdkNDA4MGEtYjNmYi00MWI4LWE1N2QtYTdlNmYxMGJlZWM2fHJlYWQ=",
   "parallel": 5,
   "namedInputs": {
     "sharedGlobals": [
@@ -55,5 +54,6 @@
       "outputs": ["{projectRoot}/build", "{projectRoot}/dist"],
       "cache": true
     }
-  }
+  },
+  "nxCloudAccessToken": "NTczOGQ5NzQtZjc0MS00YTM4LWIzZDctZjZlNTFkMWMzOWRjfHJlYWQtd3JpdGU="
 }
