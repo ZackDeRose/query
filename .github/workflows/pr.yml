@@ -34,6 +34,8 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Token length
+        run: echo "${#NX_CLOUD_ACCESS_TOKEN}"
       - name: Start Agents
         run: npx nx-cloud start-ci-run --distribute-on="12 linux-medium-js"
       - name: Install dependencies
